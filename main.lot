@@ -1,17 +1,15 @@
-\contentsline {table}{\numberline {1}{\ignorespaces 팀 구성 및 역할 분배 --- 역할 $\times $ 리포지토리 대응\relax }}{7}{}%
-\contentsline {table}{\numberline {2}{\ignorespaces 도메인별 공격/방어 개요 --- 구현 및 실측 완료 (구현: \texttt {src/attacks/}, \texttt {src/defenses/})\relax }}{11}{}%
-\contentsline {table}{\numberline {3}{\ignorespaces 헤드라인 주입값과 실제 창발 결과의 비교 (상세 재도출: \texttt {docs/honest\_effect\_metrics.md})\relax }}{14}{}%
-\contentsline {table}{\numberline {4}{\ignorespaces 시나리오 $\to $ 구현 $\to $ 증거 추적표\relax }}{14}{}%
-\contentsline {table}{\numberline {5}{\ignorespaces CVE / 실제 사건 앵커링\relax }}{15}{}%
-\contentsline {table}{\numberline {6}{\ignorespaces 5단계 증거 티어 태깅 체계\relax }}{16}{}%
-\contentsline {table}{\numberline {7}{\ignorespaces 공격 $\leftrightarrow $ 방어 결합 행렬(도메인별 요약)\relax }}{18}{}%
-\contentsline {table}{\numberline {8}{\ignorespaces 도메인별 RED 에이전트\relax }}{21}{}%
-\contentsline {table}{\numberline {9}{\ignorespaces 7종 탐지기 도구\relax }}{21}{}%
-\contentsline {table}{\numberline {10}{\ignorespaces 라이브 폐루프 실측(n=3)\relax }}{23}{}%
-\contentsline {table}{\numberline {11}{\ignorespaces 배포 커맨더 적대적 탐침 결과(실제 \texttt {claude-sonnet-5}, 3반복/케이스)\relax }}{24}{}%
-\contentsline {table}{\numberline {12}{\ignorespaces 오라클 정답 라벨(ground truth)\relax }}{25}{}%
-\contentsline {table}{\numberline {13}{\ignorespaces 소스별 객관 탐지 지표(근거: \texttt {docs/evidence/oracle\_eval/oracle\_metrics.json})\relax }}{25}{}%
-\contentsline {table}{\numberline {14}{\ignorespaces 독립 재판정: blind 무도구 vs commander 유도구(n=3, 루브릭 100점)\relax }}{26}{}%
-\contentsline {table}{\numberline {15}{\ignorespaces 모델 등급별 bake-off(동일 탐지기 도구, 동일 3 캡처)\relax }}{26}{}%
-\contentsline {table}{\numberline {16}{\ignorespaces Real-game BLUE 방어 결과\relax }}{26}{}%
-\contentsline {table}{\numberline {17}{\ignorespaces UAV 피치 오버라이드 탐지 경계(baseline 하한 30us $\to $ hardened 12us)\relax }}{27}{}%
+\contentsline {table}{\numberline {1}{\ignorespaces 팀 구성 및 역할 분배\relax }}{8}{}%
+\contentsline {table}{\numberline {2}{\ignorespaces 도메인별 공격/방어 개요 --- 구현 및 실측 대상\relax }}{11}{}%
+\contentsline {table}{\numberline {3}{\ignorespaces 플랫폼별 공격 시나리오에 따른 물리적 창발 지표 및 실증 데이터 추적표 (Traceability Matrix)\relax }}{15}{}%
+\contentsline {table}{\numberline {4}{\ignorespaces 공인 취약점 (CVE) 및 실제 전장 사례와 본 연구의 위협 모델 간 교차 매핑 (anchoring)\relax }}{17}{}%
+\contentsline {table}{\numberline {5}{\ignorespaces 방어 성능 검증의 객관성 확보를 위한 5단계 증거 티어 태깅 체계\relax }}{18}{}%
+\contentsline {table}{\numberline {6}{\ignorespaces 공격 유형별 탐지-차단-복구 결합 행렬 (Coupling Matrix) 종합 요약\relax }}{20}{}%
+\contentsline {table}{\numberline {7}{\ignorespaces 사이버-물리 도메인별 공격 (RED) 에이전트 구성 및 임무\relax }}{23}{}%
+\contentsline {table}{\numberline {8}{\ignorespaces 통합 방어 시스템의 7종 탐지기 도구\relax }}{24}{}%
+\contentsline {table}{\numberline {9}{\ignorespaces 라이브 폐루프 실증 결과 (n=3)\relax }}{26}{}%
+\contentsline {table}{\numberline {10}{\ignorespaces 방어 커맨더의 적대적 프롬프트 탐침 결과 (Sonnet-5 적용, 케이스당 3회 반복)\relax }}{27}{}%
+\contentsline {table}{\numberline {11}{\ignorespaces 오라클 정답 라벨 (Ground Truth)\relax }}{28}{}%
+\contentsline {table}{\numberline {12}{\ignorespaces 소스별 결정론적·재현 가능한 탐지 지표 (근거 데이터: \texttt {docs/evidence/oracle\_eval/oracle\_metrics.json})\relax }}{28}{}%
+\contentsline {table}{\numberline {13}{\ignorespaces 언어 모델 등급별 벤치마크 평가 결과 (동일 탐지기 도구 스위트 및 3개 시나리오 통제 환경, DECIDE 모델만 교체)\relax }}{29}{}%
+\contentsline {table}{\numberline {14}{\ignorespaces 통합 시뮬레이션 캠페인 기반 단일 공유 BLUE 커맨더 (\texttt {blue\_commander}) 위협 탐지 성능 검증 결과\relax }}{30}{}%
+\contentsline {table}{\numberline {15}{\ignorespaces UAV 피치 오버라이드 탐지 경계 분석\relax }}{30}{}%

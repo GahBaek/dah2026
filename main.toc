@@ -1,0 +1,91 @@
+\contentsline {title}{Aegis-UxV: 다중 도메인 국방 무인체계를 위한 도구 근거 RED/BLUE 에이전트}{1}{}%
+\authcount {1}
+\contentsline {author}{BombTEE: 전형준, 권유정, 김민석, 백가현}{1}{}%
+\contentsline {section}{\numberline {1}요약 (Abstract)}{5}{}%
+\contentsline {section}{\numberline {2}서론}{6}{}%
+\contentsline {subsection}{\numberline {2.1}배경: 방산 자율체계의 사이버 위협 지형}{6}{}%
+\contentsline {subsection}{\numberline {2.2}문제 정의: 출처 모호성 (provenance ambiguity)}{6}{}%
+\contentsline {subsection}{\numberline {2.3}연구 범위와 정직성 원칙}{6}{}%
+\contentsline {subsection}{\numberline {2.4}핵심 기여}{7}{}%
+\contentsline {section}{\numberline {3}팀 구성 및 역할 분배 · 전문성}{8}{}%
+\contentsline {subsection}{\numberline {3.1}역할 분배}{8}{}%
+\contentsline {subsection}{\numberline {3.2}팀원 관련 AI·보안 연구 실적}{8}{}%
+\contentsline {section}{\numberline {4}배경지식 및 위협 모델}{9}{}%
+\contentsline {subsection}{\numberline {4.1}공격자 능력 모델}{9}{}%
+\contentsline {subsection}{\numberline {4.2}공격 구현의 세 계층}{9}{}%
+\contentsline {subsection}{\numberline {4.3}관련 프로토콜·플랫폼 계층 문헌}{10}{}%
+\contentsline {subsubsection}{\numberline {4.3.1}MAVLink 계층}{10}{}%
+\contentsline {subsubsection}{\numberline {4.3.2}로봇 미들웨어 및 인접 플랫폼}{10}{}%
+\contentsline {subsubsection}{\numberline {4.3.3}시뮬레이션 및 공격 재현 플랫폼}{10}{}%
+\contentsline {subsection}{\numberline {4.4}공격 표면 개요}{10}{}%
+\contentsline {section}{\numberline {5}공격 시나리오}{11}{}%
+\contentsline {subsection}{\numberline {5.1}시나리오 구성 원칙}{11}{}%
+\contentsline {subsection}{\numberline {5.2}UAV 도메인 - ISR/타격/체공 무인기}{12}{}%
+\contentsline {paragraph}{\textbf {T-UAV-1 · 단일채널 RC 오버라이드}}{12}{}%
+\contentsline {paragraph}{\textbf {T-UAV-2 · 위조 명령 주입 (임무 중단)}}{12}{}%
+\contentsline {paragraph}{\textbf {T-UAV-3 · GPS 완만 기만 (항법 의존적 창발)}}{12}{}%
+\contentsline {paragraph}{\textbf {T-UAV-4 · GNSS 재밍 및 거부 (항법 소스 상실)}}{12}{}%
+\contentsline {paragraph}{\textbf {T-UAV-5 · 지자기 (나침반) 기만}}{12}{}%
+\contentsline {paragraph}{\textbf {T-UAV-6 · IMU 및 기압 센서 다중화 기만}}{13}{}%
+\contentsline {paragraph}{\textbf {T-UAV-7 · 미션 및 파라미터 변조}}{13}{}%
+\contentsline {paragraph}{\textbf {T-UAV-8 · ADS-B 유령 항공기 기만 (충돌 회피 악용)}}{13}{}%
+\contentsline {subsection}{\numberline {5.3}UGV 도메인 --- 자율 호송/군수/정찰 무인차량}{13}{}%
+\contentsline {paragraph}{\textbf {T-UGV-1 · 조향 채널 오버라이드}}{13}{}%
+\contentsline {paragraph}{\textbf {T-UGV-2 · 명령 주입 및 주행 중 모터 차단}}{13}{}%
+\contentsline {paragraph}{\textbf {T-UGV-3 · GPS 완만 기만 (지상 기체 선형 이탈)}}{14}{}%
+\contentsline {subsection}{\numberline {5.4}위성통신 / BLOS 데이터링크 도메인 --- C2 중계}{14}{}%
+\contentsline {paragraph}{\textbf {T-SAT-1 · 링크 열화 (지연·지터·손실 주입)}}{14}{}%
+\contentsline {paragraph}{\textbf {T-SAT-2 · DoS 블랙아웃}}{14}{}%
+\contentsline {paragraph}{\textbf {T-SAT-3 · 대역 포화 플러딩 (명령 기아)}}{14}{}%
+\contentsline {paragraph}{\textbf {T-SAT-4 · 언사인드 MAVLink 재전송 (replay)}}{14}{}%
+\contentsline {subsection}{\numberline {5.5}도메인별 매핑 및 측정된 공격 합성}{15}{}%
+\contentsline {subsection}{\numberline {5.6}독트린 킬체인(KC-3/KC-4)과 CVE 앵커링}{16}{}%
+\contentsline {subsection}{\numberline {5.7}요약}{17}{}%
+\contentsline {section}{\numberline {6}방어 아키텍처}{17}{}%
+\contentsline {subsection}{\numberline {6.1}설계 철학 - 탐지·예방·복구의 3층과 정직성 계약}{17}{}%
+\contentsline {subsection}{\numberline {6.2}탐지 계층 D2--D8: 메커니즘 설계 및 실측 성능 (TTD/FP)}{18}{}%
+\contentsline {paragraph}{\textbf {D2 --- 제어 명령 스트림 침입 탐지 (IDS)} (\texttt {command\_ids.py}):}{18}{}%
+\contentsline {paragraph}{\textbf {D3 --- GNSS 기만 및 항법 이탈 탐지}}{18}{}%
+\contentsline {paragraph}{\textbf {D4 --- 데이터링크 품질 상태 전이 추적기}}{18}{}%
+\contentsline {paragraph}{\textbf {D5 --- 제어 및 물리 상태 불변식 감시}}{18}{}%
+\contentsline {paragraph}{\textbf {D6 --- 시그니처-프리 원격측정 이상 탐지}}{19}{}%
+\contentsline {paragraph}{\textbf {D7 --- GNSS 및 IMU 센서 교차 검증}}{19}{}%
+\contentsline {paragraph}{\textbf {D8 --- 기압계 스푸핑 물리적 교차 검증}}{19}{}%
+\contentsline {paragraph}{\textbf {보조 탐지 및 예방 모듈}}{19}{}%
+\contentsline {subsection}{\numberline {6.3}예방 계층 태깅과 결합 행렬}{19}{}%
+\contentsline {subsection}{\numberline {6.4}실시간 예방 및 차단: 5대 방어 메커니즘의 실증적 공격 방어율 (ASR 1.0 $\to $ 0.0)}{20}{}%
+\contentsline {subsection}{\numberline {6.5}심층 방어 (defense-in-depth) --- 단일 규칙 우회 시의 다중 백업 기제}{21}{}%
+\contentsline {subsection}{\numberline {6.6}하드닝 (hardening) --- D3 및 D5의 탐지 영역 (envelope) 확장}{21}{}%
+\contentsline {subsection}{\numberline {6.7}실현 가능성(deployability) --- 모두 네이티브 ArduPilot/컴패니언}{22}{}%
+\contentsline {section}{\numberline {7}AI 에이전트 아키텍처}{22}{}%
+\contentsline {subsection}{\numberline {7.1}아키텍처 개요: 다중 도메인 RED, 오케스트레이터, 단일 공유 BLUE}{22}{}%
+\contentsline {subsection}{\numberline {7.2}에이전트 역할 정의}{23}{}%
+\contentsline {subsection}{\numberline {7.3}탐지기 도구 (tools) 7종}{24}{}%
+\contentsline {subsection}{\numberline {7.4}LLM 백엔드: 로컬 CLI 기반 서브프로세스 샌드박싱}{25}{}%
+\contentsline {subsection}{\numberline {7.5}BLUE 파이프라인 워크플로우}{25}{}%
+\contentsline {subsection}{\numberline {7.6}협력 구조와 철저한 정보 격리}{25}{}%
+\contentsline {subsection}{\numberline {7.7}라이브 폐루프 (Live Closed-Loop): 의사결정의 물리적 제어 연동}{26}{}%
+\contentsline {subsection}{\numberline {7.8}설명 가능한 방어 및 결정론적 오라클 기반 채점}{26}{}%
+\contentsline {subsection}{\numberline {7.9}방어 에이전트 자체의 적대적 강건성 실측 및 방어}{27}{}%
+\contentsline {section}{\numberline {8}평가 방법론 및 결과}{28}{}%
+\contentsline {subsection}{\numberline {8.1}핵심 탐지 지표에서 LLM 자기평가 순환을 배제}{28}{}%
+\contentsline {subsection}{\numberline {8.2}결정론적·재현 가능한 탐지 지표: 소스별 TP/FN/Recall 및 시간 위치 추정 성능 분석}{28}{}%
+\contentsline {subsection}{\numberline {8.3}모델 벤치마크 평가: 평가된 제한 시나리오에서 관찰된 성능 포화와 비용 차이 분석}{29}{}%
+\contentsline {subsection}{\numberline {8.4}다중 도메인 통합 캠페인 평가: 3개 도메인 조율 Counter-C2 분석}{29}{}%
+\contentsline {subsection}{\numberline {8.5}D5 탐지기의 경험적 탐지 경계 분석}{30}{}%
+\contentsline {subsection}{\numberline {8.6}실시간 폐루프 능동 대응 메커니즘 검증}{31}{}%
+\contentsline {subsection}{\numberline {8.7}연구의 실증적 한계점}{31}{}%
+\contentsline {section}{\numberline {9}관련 연구}{31}{}%
+\contentsline {subsection}{\numberline {9.1}MAVLink/UAS 프로토콜 보안}{31}{}%
+\contentsline {subsection}{\numberline {9.2}인접 플랫폼: ROS\nobreakspace {}2/DDS 및 자율 로봇}{32}{}%
+\contentsline {subsection}{\numberline {9.3}UAV/UGV Red/Blue 테스트베드}{32}{}%
+\contentsline {subsection}{\numberline {9.4}LLM 에이전트 보안}{32}{}%
+\contentsline {subsection}{\numberline {9.5}에이전트 오케스트레이션 인프라 및 평가 방법론}{32}{}%
+\contentsline {subsection}{\numberline {9.6}실제 사건 및 GNSS/센서 스푸핑 문헌}{33}{}%
+\contentsline {section}{\numberline {10}결론, 한계 및 향후 과제}{33}{}%
+\contentsline {subsection}{\numberline {10.1}종합 결론}{33}{}%
+\contentsline {subsection}{\numberline {10.2}근본 한계}{33}{}%
+\contentsline {subsection}{\numberline {10.3}현실성 심화 --- SITL 내장 동역학·센서 모델을 활용한 효과 수준 재검증}{34}{}%
+\contentsline {subsection}{\numberline {10.4}심화 관측 및 자체 레드티밍 결과}{35}{}%
+\contentsline {subsection}{\numberline {10.5}향후 과제}{36}{}%
+\contentsline {subsection}{\numberline {10.6}맺음말}{36}{}%

@@ -3,100 +3,16 @@
 \providecommand{\urlprefix}{URL }
 \providecommand{\doi}[1]{https://doi.org/#1}
 
-\bibitem{mavlink_survey_threats}
-Almalki, F.A., et~al.: Mavlink protocol: A survey of security threats and
-  countermeasures. arXiv preprint  (2024)
-
-\bibitem{mavshield}
-Anonymous: Experimental analysis of mavlink protocol vulnerability on uavs
-  security experiment platform  (2021)
-
-\bibitem{muvids}
-Anonymous: Muvids: False mavlink injection attack detection in communication
-  for unmanned vehicle systems. In: NDSS AutoSec Workshop (2021)
-
-\bibitem{mixed_sense}
-Anonymous: Mixed-sense: A mixed reality sensor emulation framework for test and
-  evaluation of uavs against false data injection attacks. arXiv preprint
-  arXiv:2407.09342  (2024)
-
-\bibitem{ros2_lidar_spoofing}
-Anonymous: Crashing or freezing the bot: Lidar spoofing attacks on ros 2 ugv.
-  In: Springer Nature (2025)
-
 \bibitem{session_types_mavlink}
-Anonymous: Enforcing mavlink safety and security properties via refined
-  multiparty session types. arXiv preprint arXiv:2501.18874  (2025)
-
-\bibitem{prompt_to_protocol}
-Anonymous: From prompt injections to protocol exploits: Threats in llm-powered
-  ai agents workflows. arXiv preprint arXiv:2506.23260  (2025)
-
-\bibitem{memorygraft}
-Anonymous: Memorygraft: Persistent compromise of llm agents via poisoned
-  experience retrieval. arXiv preprint arXiv:2512.16962  (2025)
-
-\bibitem{ardupilot_reverse}
-Anonymous: Reverse engineering and control-aware security analysis of the
-  ardupilot uav framework. arXiv preprint arXiv:2512.01164  (2025)
-
-\bibitem{mavlink_vuln_sciup}
-Anonymous: Securing drone communications: A vulnerability analysis of mavlink.
-  SciUp preprint  (2025)
-
-\bibitem{seven_challenges_mas}
-Anonymous: Seven security challenges that must be solved in cross-domain
-  multi-agent llm systems. arXiv preprint arXiv:2505.23847  (2025)
-
-\bibitem{humanoid_sok}
-Anonymous: Sok: Cybersecurity assessment of humanoid ecosystem. arXiv preprint
-  arXiv:2508.17481  (2025)
-
-\bibitem{ros2_supply_chain}
-Anonymous: Supply chain exploitation of secure ros 2 systems: A
-  proof-of-concept on autonomous platform compromise via keystore exfiltration.
-  arXiv preprint arXiv:2511.00140  (2025)
-
-\bibitem{theaterq}
-Anonymous: Theaterq: A qdisc for dynamic network emulation. arXiv preprint
-  arXiv:2510.27057  (2025)
-
-\bibitem{quadruped_survey}
-Anonymous: Cybersecurity of teleoperated quadruped robots: A systematic survey
-  of vulnerabilities, threats, and open defense gaps. arXiv preprint
-  arXiv:2602.23404  (2026)
-
-\bibitem{mas_security_considerations}
-Anonymous: Security considerations for multi-agent systems. arXiv preprint
-  arXiv:2603.09002  (2026)
-
-\bibitem{uas_survey_sok}
-Anonymous: A survey of security challenges and solutions for uas and utm
-  ecosystem. arXiv preprint arXiv:2601.08229  (2026)
-
-\bibitem{memory_survey}
-Anonymous: A survey on the security of long-term memory in llm agents: Toward
-  mnemonic sovereignty. arXiv preprint arXiv:2604.16548  (2026)
-
-\bibitem{openclaw}
-Anonymous: Taming openclaw: Security analysis and mitigation of autonomous llm
-  agent threats. arXiv preprint arXiv:2603.11619  (2026)
-
-\bibitem{exfil_backdoor}
-Anonymous: Your llm agent can leak your data: Data exfiltration via backdoored
-  tool use. arXiv preprint arXiv:2604.05432  (2026)
-
-\bibitem{zombie_agents}
-Anonymous: Zombie agents: Persistent control of self-evolving llm agents via
-  self-reinforcing injections. arXiv preprint arXiv:2602.15654  (2026)
+Amorim, A., Taylor, M., Kann, T., Harrison, W.L., Leavens, G.T., Joneckis, L.:
+  Enforcing {MAVLink} safety \& security properties via refined multiparty
+  session types. In: NASA Formal Methods (NFM 2025). Lecture Notes in Computer
+  Science, Springer (2025). \doi{10.1007/978-3-031-93706-4\_1}, arXiv preprint
+  arXiv:2501.18874
 
 \bibitem{claude_code}
-{Anthropic}: Claude code: Agentic coding tool.
-  \url{https://www.anthropic.com/claude-code} (2025)
-
-\bibitem{litellm}
-{BerriAI}: Litellm: Unified interface for llm apis.
-  \url{https://github.com/BerriAI/litellm} (2024)
+{Anthropic}: Claude code (2025), \url{https://www.anthropic.com/claude-code},
+  documentation: \url{https://docs.claude.com/en/docs/claude-code/overview}
 
 \bibitem{rusi_russian_airwar_2022}
 Bronk, J., Reynolds, N., Watling, J.: The russian air war and ukrainian
@@ -104,16 +20,35 @@ Bronk, J., Reynolds, N., Watling, J.: The russian air war and ukrainian
   (RUSI) (2022)
 
 \bibitem{sros2_insecurity}
-Deng, G., et~al.: On the (in)security of secure ros2. In: Proceedings of the
-  ACM Conference on Computer and Communications Security (CCS) (2022)
+Deng, G., Xu, G., Zhou, Y., Zhang, T., Liu, Y.: On the ({In})security of secure
+  {ROS2}. In: Proceedings of the ACM Conference on Computer and Communications
+  Security (CCS). ACM (2022)
+
+\bibitem{prompt_to_protocol}
+Ferrag, M.A., Tihanyi, N., Hamouda, D., Maglaras, L., Lakas, A., Debbah, M.:
+  From prompt injections to protocol exploits: Threats in {LLM}-powered {AI}
+  agents workflows. arXiv preprint arXiv:2506.23260  (2025)
 
 \bibitem{ficco2022mavlink}
-Ficco, M., et~al.: Mavlink protocol for unmanned aerial vehicle:
-  Vulnerabilities analysis  (2022)
+Ficco, M., Palmiero, R., Rak, M., Granata, D.: {MAVLink} protocol for unmanned
+  aerial vehicle: Vulnerabilities analysis. In: 2022 IEEE Intl Conf on
+  Dependable, Autonomic and Secure Computing, Intl Conf on Pervasive
+  Intelligence and Computing, Intl Conf on Cloud and Big Data Computing, Intl
+  Conf on Cyber Science and Technology Congress
+  (DASC/PiCom/CBDCom/CyberSciTech). pp.~1--6. IEEE (2022)
+
+\bibitem{mavlink_survey_threats}
+Hamza, M.A., Mohsin, M., Khalil, M., Kazmi, S.M.K.A.: {MAVLink} protocol: A
+  survey of security threats and countermeasures. In: 2024 4th International
+  Conference on Digital Futures and Transformative Technologies (ICoDT2).
+  pp.~1--8. IEEE (2024)
 
 \bibitem{aitm}
-He, P., et~al.: Red-teaming llm multi-agent systems via communication attacks.
-  In: Findings of the Association for Computational Linguistics (ACL) (2025)
+He, P., Lin, Y., Dong, S., Xu, H., Xing, Y., Liu, H.: Red-teaming {LLM}
+  multi-agent systems via communication attacks. In: Findings of the
+  Association for Computational Linguistics: ACL 2025. pp. 6726--6747.
+  Association for Computational Linguistics, Vienna, Austria (2025).
+  \doi{10.18653/v1/2025.findings-acl.349}, arXiv preprint arXiv:2502.14847
 
 \bibitem{humphreys_testimony_2012}
 Humphreys, T.E.: Statement on the vulnerability of civil unmanned aerial
@@ -121,22 +56,54 @@ Humphreys, T.E.: Statement on the vulnerability of civil unmanned aerial
   Subcommittee on Oversight, Investigations, and Management, Committee on
   Homeland Security, U.S. House of Representatives (2012)
 
+\bibitem{muvids}
+Jeong, S., Park, E., Seo, K.U., Yoo, J.D., Kim, H.K.: {MUVIDS}: False {MAVLink}
+  injection attack detection in communication for unmanned vehicles. In:
+  Workshop on Automotive and Autonomous Vehicle Security (AutoSec), co-located
+  with NDSS (2021). \doi{10.14722/autosec.2021.23036}
+
+\bibitem{seven_challenges_mas}
+Ko, R., Jeong, J., Zheng, S., Xiao, C., Kim, T.W., Onizuka, M., Shin, W.Y.:
+  Seven security challenges that must be solved in cross-domain multi-agent
+  {LLM} systems. arXiv preprint arXiv:2505.23847  (2025)
+
+\bibitem{ardupilot_reverse}
+Konapalli, Y., Ben~Othmane, L., Tunc, C., Benchellal, F., Mudagere, L.: Reverse
+  engineering and control-aware security analysis of the {ArduPilot} {UAV}
+  framework. arXiv preprint arXiv:2512.01164  (2025), to appear in the IEEE/ACM
+  7th International Workshop on Software Engineering Research \& Practices for
+  the IoT (SERP4IoT), 2026
+
 \bibitem{mavlink_nutshell}
-Koubaa, A., et~al.: Micro air vehicle link (mavlink) in a nutshell: A survey.
-  arXiv preprint arXiv:1906.10641  (2019)
+Koub{\^a}a, A., Allouch, A., Alajlan, M., Javed, Y., Belghith, A., Khalgui, M.:
+  Micro air vehicle link ({MAVLink}) in a nutshell: A survey. IEEE Access
+  \textbf{7},  87658--87680 (2019), arXiv preprint arXiv:1906.10641
 
-\bibitem{vllm}
-Kwon, W., et~al.: vllm: Easy, fast, and cheap llm serving with pagedattention.
-  \url{https://github.com/vllm-project/vllm} (2023)
+\bibitem{ros2_lidar_spoofing}
+Lee, H., Lee, H., Jung, Y., Heo, S., Park, M., Yoo, C.: Crashing or freezing
+  the bot: {LiDAR} spoofing attacks on {ROS} 2 {UGV}. In: Information Security
+  Applications (WISA 2025). Lecture Notes in Computer Science, vol. 16434.
+  Springer, Singapore (2026). \doi{10.1007/978-981-95-6857-4\_1}
 
-\bibitem{langgraph}
-{LangChain AI}: Langgraph: Building stateful, multi-agent applications with
-  llms. \url{https://www.langchain.com/langgraph} (2024)
+\bibitem{memory_survey}
+Lin, Z., Li, C., Chen, K.: A survey on the security of long-term memory in
+  {LLM} agents: Toward mnemonic sovereignty. arXiv preprint arXiv:2604.16548
+  (2026)
 
 \bibitem{cve202010283}
-{MITRE}: {CVE-2020-10283}: Mavlink-based systems do not verify the identity of
-  a ground control station. National Vulnerability Database,
+{MITRE}: {CVE-2020-10283}: {MAVLink} version handshaking allows an attacker to
+  bypass authentication. National Vulnerability Database,
   \url{https://nvd.nist.gov/vuln/detail/CVE-2020-10283} (2020)
+
+\bibitem{mavlink_vuln_sciup}
+Murki, A., Kalale, M.A., Anil, S., Thilagam, P.S.: Securing drone
+  communications: A vulnerability analysis of {MAVLink}. International Journal
+  of Wireless and Microwave Technologies (IJWMT)  \textbf{15}(6),  14--26
+  (2025). \doi{10.5815/ijwmt.2025.06.02}
+
+\bibitem{mas_security_considerations}
+Nguyen, T., Ndebugre, M., Arremsetty, D.: Security considerations for
+  multi-agent systems. arXiv preprint arXiv:2603.09002  (2026)
 
 \bibitem{nist_aml}
 {NIST}: Adversarial machine learning: A taxonomy and terminology of attacks and
@@ -147,23 +114,68 @@ Kwon, W., et~al.: vllm: Easy, fast, and cheap llm serving with pagedattention.
 {Open Robotics}: Ros 2 robotic systems threat model.
   \url{https://design.ros2.org/articles/ros2_threat_model.html} (2023)
 
+\bibitem{theaterq}
+Ottens, M., Hielscher, K.S., German, R.: {TheaterQ}: A qdisc for dynamic
+  network emulation. arXiv preprint arXiv:2510.27057  (2025)
+
 \bibitem{owasp_promptinjection}
 {OWASP}: Llm prompt injection prevention cheat sheet.
   \url{https://cheatsheetseries.owasp.org/cheatsheets/LLM_Prompt_Injection_Prevention_Cheat_Sheet.html}
   (2025)
 
+\bibitem{mixed_sense}
+Pant, K.A., Lin, L.Y., Kim, J., Sribunma, W., Goppert, J.M., Hwang, I.:
+  {MIXED-SENSE}: A mixed reality sensor emulation framework for test and
+  evaluation of {UAVs} against false data injection attacks. arXiv preprint
+  arXiv:2407.09342  (2024), presented at IEEE/RSJ IROS 2024
+
 \bibitem{psiaki_humphreys_2016}
 Psiaki, M.L., Humphreys, T.E.: {GNSS} spoofing and detection. Proceedings of
   the IEEE  \textbf{104}(6),  1258--1270 (2016)
 
+\bibitem{quadruped_survey}
+Sabouri, M.: Cybersecurity of teleoperated quadruped robots: A systematic
+  survey of vulnerabilities, threats, and open defense gaps. arXiv preprint
+  arXiv:2602.23404  (2026)
+
+\bibitem{ros2_supply_chain}
+Sakib, T.H., Romano~Martinez, Y., Brady, C., Hasan, S.R., Guo, T.N.: Supply
+  chain exploitation of secure {ROS} 2 systems: A proof-of-concept on
+  autonomous platform compromise via keystore exfiltration. In: 2025 IEEE
+  Military Communications Conference (MILCOM) Workshops. Los Angeles, CA, USA
+  (2025), arXiv preprint arXiv:2511.00140
+
+\bibitem{uas_survey_sok}
+Sharifi, I., Ghazanfari, M., Taye, A., Wei, P., Ahmed, M.H., Kim, H.T.,
+  Ghasemi, M., Gupta, V., Dahle, N., Canady, R., Diaz~Gonzalez, A., Coursey,
+  A., Bjorkman, B., Lemieux-Mack, C., Ward, B.C., Koutsoukos, X., Biswas, G.,
+  Herencia-Zapana, H., Hasan, S., Amundson, I., Fotiadis, F., Topcu, U., Lu,
+  J., Chen, Q.A., Aryal, N., Ibrahim, A., Ras, A.K., Shirkhodaie, A.: A survey
+  of security challenges and solutions for {UAS} traffic management ({UTM}) and
+  small unmanned aerial systems ({sUAS}). arXiv preprint arXiv:2601.08229
+  (2026)
+
 \bibitem{smsr}
-Sharma, T.: Smsr: Certified defence against runtime memory poisoning in
-  persistent llm agent systems. arXiv preprint arXiv:2606.12703  (2026)
+Sharma, T.: {SMSR}: Certified defence against runtime memory poisoning in
+  persistent {LLM} agent systems. arXiv preprint arXiv:2606.12703  (2026)
 
 \bibitem{son2015rocking}
 Son, Y., Shin, H., Kim, D., Park, Y.S., Noh, J., Choi, K., Choi, J., Kim, Y.:
   Rocking drones with intentional sound noise on gyroscopic sensors. In: 24th
   USENIX Security Symposium (USENIX Security 15) (2015)
+
+\bibitem{memorygraft}
+Srivastava, S.S., He, H.: Memorygraft: Persistent compromise of llm agents via
+  poisoned experience retrieval. arXiv preprint arXiv:2512.16962  (2025)
+
+\bibitem{openclaw}
+Steinberger, P., {OpenClaw Foundation}: Openclaw (2026),
+  \url{https://openclaw.ai}, first released 2025 as Clawdbot;
+  \url{https://github.com/openclaw/openclaw}
+
+\bibitem{humanoid_sok}
+Surve, P.P., Shabtai, A., Elovici, Y.: {SoK}: Cybersecurity assessment of
+  humanoid ecosystem. arXiv preprint arXiv:2508.17481  (2025)
 
 \bibitem{cage_challenge}
 {The Technical Cooperation Program (TTCP)}: {TTCP CAGE} challenge: Cyber
@@ -178,11 +190,28 @@ Trippel, T., Weisse, O., Xu, W., Honeyman, P., Fu, K.: {WALNUT}: Waging doubt
 \bibitem{tu2018injected}
 Tu, Y., Lin, Z., Lee, I., Hei, X.: Injected and delivered: Fabricating implicit
   control over actuation systems by spoofing inertial sensors. In: 27th USENIX
-  Security Symposium (USENIX Security 18) (2018)
+  Security Symposium (USENIX Security 18). pp. 1545--1562 (2018)
+
+\bibitem{mavshield}
+Xu, H., Zhang, H., Sun, J., Xu, W., Wang, W., Li, H., Zhang, J.: Experimental
+  analysis of {MAVLink} protocol vulnerability on {UAVs} security experiment
+  platform. In: 2021 3rd International Conference on Industrial Artificial
+  Intelligence (IAI). pp.~1--6. IEEE (2021)
+
+\bibitem{zombie_agents}
+Yang, X., He, Y., Ji, S., Hooi, B., Dong, J.S.: Zombie agents: Persistent
+  control of self-evolving llm agents via self-reinforcing injections. arXiv
+  preprint arXiv:2602.15654  (2026)
 
 \bibitem{uavlnq}
-Yousef, A., Tsai, C., Mistry, N., M{\'e}ndez~Real, M., Gogniat, G.: Uavlnq: An
-  ardupilot sitl and ns-3 co-simulation platform for uav swarm cyber-attack
-  research. HAL preprint hal-05537630  (2026)
+Yousef, A., Tsai, C., Mistry, N., M{\'e}ndez~Real, M., Gogniat, G.: {UAVLnQ}:
+  An architecture for security analysis of cyber-physical network behavior in
+  {UAV} swarms. In: Workshop on Design and Architectures for Signal and Image
+  Processing (DASIP), in conjunction with HiPEAC. Krak{\'o}w, Poland (Jan
+  2026), hAL preprint hal-05537630
+
+\bibitem{exfil_backdoor}
+Zhang, W., Pei, S.: Your {LLM} agent can leak your data: Data exfiltration via
+  backdoored tool use. arXiv preprint arXiv:2604.05432  (2026)
 
 \end{thebibliography}
