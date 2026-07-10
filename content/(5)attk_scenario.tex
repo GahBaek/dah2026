@@ -1,0 +1,404 @@
+\section{공격 시나리오}
+
+\subsection{시나리오 구성 원칙}
+
+% 본 절은 4장의 위협 모델 (공격자 능력, 구현 계층)을 바탕으로, UAV·UGV·위성/BLOS 세 도메인에서 실제 운용 맥락 위에 성립하는 \textbf{14개 공격}을 ArduPilot SITL 위에서 구현·실행한 결과를 상술한다. 모든 정량 수치는 \emph{주입량 (injected quantity)}과 \emph{창발적 임무 결과 (emergent mission outcome)}를 명시적으로 분리하며 헤드라인 주입값이 아니라 실제로 기체·임무에 일어난 결과를 기준 수치로 삼는다. 근거는 전부 \texttt{docs/evidence/} 및 \texttt{docs/honest\_effect\_metrics.md}에서만 인용하며, 근거가 없는 항목은 미측정 또는 설계 수준으로 표기한다. 탐지·차단·복구의 상세 설계는 6장으로 이관하고, 본 절에서는 시나리오당 공격 수치만 기술한다.
+
+
+
+본 절은 앞선 4장에서 정의한 위협 모델 (공격자의 능력 한계 및 계층별 접근성)을 기반으로, 무인기 (UAV), 무인차량 (UGV), 그리고 위성 및 가시거리 밖 (BLOS, Beyond Line-of-Sight) 데이터링크 등 세 가지 주요 방산 도메인을 전제로 설계한 \textbf{14개의 핵심 공격 시나리오}를 분석한다. 
+%
+각 공격은 실제 운용 맥락을 고려해 설계하며, 이를 ArduPilot Software-In-The-Loop(SITL) 시뮬레이션 환경에서 직접 구현 및 실행하여 발생한 결과를 바탕으로 상술한다. 
+%
+특히 모든 시나리오의 정량적 평가 시나리오는 공격자가 물리적으로 주입한 \emph{주입량 (Injected Quantity)}과 이를 통해 시스템 전반에 파생된 \emph{창발적 임무 결과 (Emergent Mission Outcome)}를 명시적으로 분리해 다룬다.  
+%
+아울러 각 시나리오에 대응하는 탐지, 차단, 복구의 상세 설계 아키텍처는 후속 6장으로 이관하여 심층적으로 다루되, 본 절에서는 공격-방어 맥락의 연결성을 위해 공격 시나리오별로 연계되는 대표적인 방어 기법을 요약식으로 병기한다.
+
+
+\subsection{UAV 도메인 - ISR/타격/체공 무인기}
+
+UAV 임무는 (a) ISR 감시정찰의 장기 체공 (LOITER), (b) 타격의 AUTO 항로 비행 후 유도, (c) 체공 대기로 나뉘며, 세 프로파일 모두 자율 위치 유지 또는 자율 항로 추종 상태에서 조종사의 실시간 스틱 입력이 없는 구간이 길다는 특징이 있다. 스틱 입력이 0이어야 정상이라는 사실이 오버라이드 주입을 탐지 가능한 불변식으로 전환한다 (4.2절).
+
+\paragraph{\textbf{T-UAV-1 · 단일채널 RC 오버라이드}} ~\\
+\textbf{공격 시나리오:} 
+% ISR UAV가 30 m LOITER 위치 유지 중, 경로상의 공격자가 PITCH(ch2) 채널 1개만 고정 off-neutral 값으로 위조하고 나머지 7개 채널은 정상 통과시킨다.
+감시정찰(ISR) UAV가 30 m 상공에서 위치 유지 임무를 수행하는 도중, 경로상에 위치한 공격자가 피치(PITCH, 채널 2) 신호 단 하나를 위조하고 나머지 채널은 정상 통과시킨 조작 공격이다.
+\\
+\textbf{실험 결과:} 위치 유지 상태에서 \textbf{수평 이탈이 최대 $\approx$ 65.2 m}까지 발생한다 (임계치 5 m, baseline 0.0 m). 5회 fresh-boot 전체에서 공격에 성공하여 ASR 5/5를 기록한다.\\
+% 근거: \texttt{src/attacks/rc\_override.py}; \texttt{docs/evidence/sweep\_UAV\_rc\_override/aggregate.json}. 
+% [방어: D5 command-invariant TTD 0.204 s, 0 FP; D-SIGN이 위조 프레임 288개 전량 drop]  
+% \paragraph{ \textbf{T-UAV-1 · 단일채널 RC 오버라이드.} }
+% ISR UAV가 30 m LOITER 위치 유지 중, 경로상 공격자가 PITCH(ch2) 1개만 위조하고 나머지 7채널을 통과시킨다. 고정 off-neutral PITCH 주입 $\to$ 위치 유지에서 \textbf{수평 이탈 최대 $\approx$ 65.2 m} (임계 5 m, baseline 0.0 m), ASR 5/5(5회 fresh-boot). 
+% % 근거: \texttt{src/attacks/rc\_override.py}; \texttt{docs/evidence/sweep\_UAV\_rc\_override/aggregate.json}. 
+% % [방어: D5 command-invariant TTD 0.204 s, 0 FP; D-SIGN이 위조 프레임 288개 전량 drop]
+\paragraph{\textbf{T-UAV-2 · 위조 명령 주입 (임무 중단)}} ~\\
+\textbf{공격 시나리오:} 
+% 타격 UAV가 3-WP AUTO 항로 비행을 수행 중인 상황에서, 공격자가 신뢰할 수 있는 시스템 ID (sysid 255)를 사칭하여 단일 \texttt{DO\_SET\_MODE $\to$ RTL} 프레임 1개를 주입한다.
+타격 임무를 부여받은 UAV가 3개의 경유점 (WP)을 포함하는 자율 (AUTO) 항로를 비행하던 도중, 신뢰할 수 있는 시스템 ID(255)를 사칭한 위장 \texttt{DO\_SET\_MODE $\to$ RTL(Return-To-Launch)} 프레임을 단 1회 주입하는 시나리오다.
+\\
+\textbf{실험 결과:} 최종 비행 모드가 RTL로 강제 전환되어 기체가 귀환하며, 3개의 웨이포인트 중 \textbf{2개의 WP에 미도달}하며, 단 1프레임의 주입만으로 전체 임무가 무력화된다.\\
+% 근거: \texttt{src/attacks/command\_injection.py}; \texttt{docs/evidence/gap\_cmd\_injection\_ids/}. 클래스 차단 증명: \texttt{docs/evidence/gap2\_mavlink\_signing/}(ASR 1.0$\to$0.0). [방어: D-SIGN = prevention]
+% \paragraph{\textbf{T-UAV-2 · 위조 명령 주입 (임무 중단).} }
+% 타격 UAV가 3-WP AUTO 항로 비행 중, 신뢰 sysid(255)를 사칭한 단일 \texttt{DO\_SET\_MODE $\to$ RTL} 프레임 1개가 주입된다. 결과적으로 \texttt{final\_mode} RTL, 3-WP 중 \textbf{2 WP 미도달}, 기체 귀환을 시키며 단 1프레임이 전 임무를 무력화한다. 
+% 근거: \texttt{src/attacks/command\_injection.py}; \texttt{docs/evidence/gap\_cmd\_injection\_ids/}. 클래스 차단 증명: \texttt{docs/evidence/gap2\_mavlink\_signing/}(ASR 1.0$\to$0.0). [방어: D-SIGN = prevention]
+\paragraph{\textbf{T-UAV-3 · GPS 완만 기만 (항법 의존적 창발)}} ~\\
+\textbf{공격 시나리오:} UAV가 정지 체공 또는 3-WP AUTO 항로 비행을 수행 중인 상황에서, 공격자가 위치 추정치를 점진적으로 왜곡하는 40 m 저속 램프 (Ramp) 기만 신호를 주입한다.\\
+\textbf{실험 결과:} 운용 모드에 따라 결과가 극명하게 갈린다. 
+% 정지 체공 중에는 EKF innovation 게이팅이 완전 저항하여 \textbf{실제 이탈이 0.009 m}에 그치나, 3-WP AUTO 항로에서는 동일 램프 주입 시 \textbf{실제 crosstrack 최대 18.31 m} (clean baseline 0.83 m)의 회랑 이탈 및 웨이포인트 미도달 (진짜 miss 8.99 m)이 발생한다. 
+기체가 \textbf{단순 정지 체공} 상태일 때는 외부 조작 신호가 주입되어도 확장 칼만 필터 (EKF)의 이노베이션 게이팅 기능이 완전히 이를 거부해, 결과론적 \textbf{이탈 거리는 0.009 m에 불과}하다. 반면, 기체가 \textbf{항로 보정이 지속해서 가해지는 자율 비행} 상태일 경우에는 동일한 공격 램프가 임무 항적을 크게 왜곡해 \textbf{최대 18.31 m에 달하는 측면 이탈 (Crosstrack Error)}을 유발하며, 이는 목표 경유지의 도달 실패로 이어진다.
+탐지 후에도 자율 페일세이프가 즉각 개입하지 않아 오염된 트랙을 그대로 비행하는 한계를 보인다.\\
+% 근거: \texttt{src/attacks/gps\_spoof.py}; \texttt{docs/evidence/gap\_gps\_spoof\_d3/}. [정직 경계: D3 EKF-innovation 탐지는 TTD 0.81 s, 0 FP로 빠르지만 탐지 $\neq$ 자동 대응. 방어: D3, [LIVE] EKF 소스전환]
+% \paragraph{\textbf{T-UAV-3 · GPS 완만 기만 (항법 의존적 창발).} }
+% 40 m 저속 램프 주입 시 운용 모드에 따라 결과가 극명하게 갈린다. 정지 체공(LOITER) 중에는 EKF innovation 게이팅이 온전히 방어하여 \textbf{실제 이탈이 0.009 m}에 그치나, 3-WP AUTO 항로 비행 중에는 동일 기만에 의해 \textbf{최대 18.31 m의 crosstrack 이탈} (baseline 0.83 m)이 발생하며 회랑 이탈 및 WP 미도달(오차 8.99 m)을 초래한다. 탐지 이후에도 자율 페일세이프가 즉각 개입하지 않아 오염된 경로를 그대로 비행하는 한계가 관찰된다.
+\paragraph{\textbf{T-UAV-4 · GNSS 재밍 및 거부 (항법 소스 상실)}} ~\\
+\textbf{공격 시나리오:} 
+% GPS 의존 AUTO 모드로 비행 중인 UAV 반경에 공격자가 광대역 재머를 가동하여 항법 신호를 완전히 거부시킨다 (\texttt{SIM\_GPS1\_ENABLE=0 + NUMSATS=0}).
+위성항법 의존도가 매우 높은 자율 비행 상태에서 공격자의 광대역 재머가 가동하는 시나리오(\texttt{SIM\_GPS1\_ENABLE=0 + NUMSATS=0})다.
+\\
+%
+%
+\textbf{실험 결과:} 
+% \texttt{fix\_type}이 6에서 1로 $\sim$0.4 s 만에 붕괴한다. EKF가 관성으로 $\sim$8 s 동안 추측항법(dead-reckon)을 수행하며 이전 추정치로 AUTO 임무를 그대로 비행하나, 이후 페일세이프가 래치되어 \textbf{AUTO $\to$ LAND로 강제 전환} (8.19 s)되며 임무가 중단 (WP4 미도달)된다. 내장 재밍 모델 (\texttt{SIM\_GPS1\_JAM=1}) 검증에서도 45 s 동안 Fix 유형이 92회 전이하는 `불안정 열화 후 완전 상실' 패턴 하에 네이티브 LAND가 4.88 s에 발동함을 확인한다. 광대역 거부 특성상 정상 소스로의 전환은 불가능하며 detect-only가 정직한 한계다.
+위성항법 의존도가 매우 높은 자율 비행 상태에서 공격자의 광대역 재머가 가동하는 시나리오(\texttt{SIM\_GPS1\_ENABLE=0 + NUMSATS=0})다. 항법 위성 신호 유형 (Fix type) 붕괴는 약 0.4초 만에 촉발되지만, 즉시 기체가 추락하는 것은 아니다. 기체의 EKF 모듈이 내부 관성 센서를 바탕으로 약 8초가량 추측 항법 (Dead-Reckoning)을 시도하며 낡은 위치 추정치에 의존해 기존 경로를 따라 그대로 비행한다. 이후 비로소 항법 또는 EKF의 페일세이프가 발동해 자율 비행 모드에서 즉각 강제 착륙 모드로 래치 (Latch)되며 임무가 중단된다.
+\\
+% 근거: \texttt{src/attacks/gnss\_jam.py}; \texttt{docs/evidence/push\_gnss\_jam\_emergent/}, \texttt{enh\_n5\_gnss\_imu\_baro/}, \texttt{enh\_gnss\_jam\_realistic/}. [방어: D7이 fix 붕괴를 0.61 s에 탐지하여 네이티브 LAND보다 7.58 s 선행 경보하나 복구는 ArduPilot 자체 EKF 페일세이프인 [DETECT-ONLY]+[NATIVE-FS] 한계]
+% \paragraph{\textbf{T-UAV-4 · GNSS 재밍 및 거부 (항법 소스 상실).} }
+% GPS에 의존하는 AUTO 모드 중 광대역 재머 (\texttt{SIM\_GPS1\_ENABLE=0 + NUMSATS=0})가 진입할 경우, $\sim$0.4 s 만에 Fix가 붕괴(6$\to$1)한다. EKF는 관성 기반으로 $\sim$8 s간 추측항법 (dead-reckon)을 유지하나, 이후 페일세이프가 래치되어 \textbf{AUTO에서 LAND 모드로 강제 전환} (8.19 s)되며 임무가 중단된다. 내장 재밍 모델(\texttt{SIM\_GPS1\_JAM=1}) 교차 검증에서도 45 s간 92회의 Fix 전이가 발생하는 '불안정 열화 후 상실' 패턴이 확인되었다. 광대역 거부 특성상 안전한 소스로의 전환은 불가하며, 네이티브 EKF 페일세이프에 의존해야 한다.
+% \textbf{T-UAV-4 · GNSS 재밍/거부(항법 소스 상실).} GPS 의존 AUTO 중 광대역 재머가 진입한다(\texttt{SIM\_GPS1\_ENABLE=0 + NUMSATS=0}). fix\_type 6$\to$1로 $\sim$0.4 s 만에 붕괴하나, EKF가 관성으로 $\sim$8 s 추측항법(dead-reckon)하며 낡은 추정치로 AUTO 임무를 그대로 비행한 뒤 나브/EKF 페일세이프가 래치돼 \textbf{AUTO$\to$LAND로 강제}된다(8.19 s, n=2; n=5 rigor 상향 시 8.13 s, std 0.08, 모드전환 100\%). 임무는 완료되지 않는다(WP4 미도달). \textbf{정직 경계:} D7이 fix 붕괴를 0.61 s에 탐지해 네이티브 LAND보다 7.58 s 선행 경보하나, 광대역 재머는 모든 GNSS를 거부하므로 건강한 GPS2로의 소스전환은 불가능하다 --- \textbf{detect-only가 정직한 한계}이고 복구는 ArduPilot 자체 EKF 페일세이프다. 근거: \texttt{src/attacks/gnss\_jam.py}; \texttt{docs/evidence/push\_gnss\_jam\_emergent/}, \texttt{enh\_n5\_gnss\_imu\_baro/}. [방어: D7, [DETECT-ONLY]+[NATIVE-FS]] \textbf{현실성 검증(추가 실측):} 위 킬스위치 모델과 별도로 ArduPilot 내장 재밍 모델(\texttt{SIM\_GPS1\_JAM=1})로도 재검증하였다 --- 위성 수·속도·위치가 흔들리며 45 s 동안 fix 유형이 92회 전이하는 현실적 "불안정 열화 후 완전 상실" 패턴이 나타나며, 이 조건에서도 D7은 0.3 s에 포착(기준선 오탐 0)하고 네이티브 EKF 페일세이프 LAND는 4.88 s에 발동한다(10.3절, 근거: \texttt{docs/evidence/enh\_gnss\_jam\_realistic/}).
+\paragraph{\textbf{T-UAV-5 · 지자기 (나침반) 기만}} ~\\
+\textbf{공격 시나리오:} 공격자가 나침반 센서에 오프셋 램프 (\texttt{SIM\_MAG1\_OFS})를 주입하여 raw 나침반 heading 오차를 최대 104.44°까지 발생시킨다.\\
+\textbf{실험 결과:} 
+% 나침반 교차검증 시스템이 이상을 탐지하되 무력화하지 못하며, \textbf{EKF 융합 yaw 오차가 최대 83.42°까지 오염}된다. 센서 다중화 검증만으로는 융합 알고리즘의 오염을 완전히 방어하지 못하는 정직한 detect-only의 한계를 보인다.
+공격 주입 시 센서 단의 가공되지 않은 방향 수치 오차가 104.44°까지 인가되며, 이는 EKF 융합 단계를 거치더라도 실질적 기수(Yaw) 오차를 83.42°까지 크게 오염시킨다. 나침반 교차 검증 메커니즘을 통해 탐지는 가능하나 융합 값을 본질적으로 무력화하지는 못한다.
+\\
+%
+% 근거: \texttt{src/attacks/sensor\_spoof.py}; \texttt{docs/evidence/gap2\_sensor\_spoof/}. [방어: D-XCHK TTD 0.61 s, 0 FP - mag 단독은 정직한 detect-only]
+% \textbf{T-UAV-5 · 지자기(나침반) 기만.} \texttt{SIM\_MAG1\_OFS} 램프 --- raw 나침반 heading 오차 최대 \textbf{104.44°} 주입 시 \textbf{EKF 융합 yaw 오차가 최대 83.42°까지 오염}되어, 나침반 교차검증은 탐지는 하되 무력화하지 못한다. 근거: \texttt{src/attacks/sensor\_spoof.py}; \texttt{docs/evidence/gap2\_sensor\_spoof/}. [방어: D-XCHK TTD 0.61 s, 0 FP --- mag 단독은 \textbf{정직한 detect-only}]
+\paragraph{\textbf{T-UAV-6 · IMU 및 기압 센서 다중화 기만}} ~\\
+\textbf{공격 시나리오:} 센서 리던던시 (Redundancy) 구조를 무력화하기 위해, 공격자가 가용 리던던시 전체를 동시에 같은 방향으로 기만하여 투표 (Out-vote) 메커니즘을 우회한다.\\
+\textbf{실험 결과:}
+% 1) \textbf{IMU 바이어스 (n=3):} 가속/자이로 바이어스 램프 주입 시 페일오버할 깨끗한 관성 소스가 없어 \textbf{EKF 융합 자세가 진값 대비 평균 47° (피크 58°) 오염}되고, 고도 손실 최대 37.2 m, ASR 1.0을 기록한다.\\
+% 2) \textbf{기압 스푸핑 (n=3, 성공 2/3):} 두 기압계 모두에 18 m 오프셋 램프 주입 시, 기압이 EKF의 1차 수직 소스이기 때문에 \textbf{실제 물리 강하 최대 $\sim$19.17 m (평균 10.06 m)}로 주입량과 1:1의 창발 결과가 유발된다.\\
+고의적인 센서 램프를 주입 시, 융합 자세는 실제 지형값 대비 평균 47° 편차를 유발하고 고도는 최대 37.2 m 가량 손실된다. 공존하는 백업 IMU 체제 전체가 오염되므로, 페일오버를 수행할 대안 센서 자체가 사라진다. 더욱 직관적인 사례로 두 기압계에 18 m 수준의 기압 변위 오프셋 램프를 동시에 주입하면, 기압은 수직 항법 보조의 1차 주요 데이터 소스이기 때문에 \textbf{기체는 정확히 약 19.17 m 수준의 고도 강하를 물리적으로 실행}한다.
+%
+% 근거: \texttt{src/attacks/imu\_spoof.py}, \texttt{baro\_spoof.py}; \texttt{docs/evidence/push\_imu\_spoof\_emergent/}, \texttt{push\_baro\_spoof\_emergent/}. [방어: 둘 다 detect-only, D-IMU TTD 1.57 s, D-BARO TTD 2.7 s, 0 FP]
+% \textbf{T-UAV-6 · IMU / 기압 센서 기만.} 센서 다중화가 있어도 모든 리던던시를 동시에 같은 방향으로 밀면 out-vote가 무력화된다. \textbf{IMU 바이어스(n=3):} 가속/자이로 바이어스 램프 $\to$ EKF 융합 자세가 진값 대비 평균 \textbf{47°}(피크 58°) 오염, 고도 손실 최대 37.2 m, ASR 1.0 --- 공존 IMU를 모두 밀었으므로 페일오버할 오염되지 않은 관성 소스가 없다(detect-only, D-IMU TTD 1.57 s, 0 FP). \textbf{기압 스푸핑(n=3, 성공 2/3):} 두 기압계 모두에 18 m 오프셋 램프 $\to$ \textbf{실제 물리 강하 최대 $\sim$19.17 m(평균 10.06 m), 주입량과 $\sim$1:1} --- 기압은 EKF의 1차 수직 소스라서 주입량 $\approx$ 창발 결과다(GPS-호버의 정반대). D-BARO TTD 2.7 s, 0 FP. 근거: \texttt{src/attacks/imu\_spoof.py}, \texttt{baro\_spoof.py}; \texttt{docs/evidence/push\_imu\_spoof\_emergent/}, \texttt{push\_baro\_spoof\_emergent/}. [방어: 둘 다 detect-only]
+\paragraph{\textbf{T-UAV-7 · 미션 및 파라미터 변조}} ~\\
+\textbf{공격 시나리오:} 
+MAVLink 미션 프로토콜 (\texttt{MISSION\_WRITE\_PARTIAL\_LIST})과 파라미터 설정 (\texttt{PARAM\_SET})의 v1 무인증 취약점을 악용하여 악성 명령을 주입한다.\\
+\textbf{실험 결과:}
+MAVLink 통신은 미션 프로토콜과 파라미터 변수 변경 구간을 인증 절차 없이 수용한다. 공격자가 임무 스케줄(Partial-List)을 조작해 기체의 두 번째 경유점 (Way-Point) 위치를 기지정된 150 m 범위의 지오펜스 (Geo-Fence)를 한참 벗어난 180 m 지점으로 재구축한다. 유입된 인자는 기체의 자율 비행 체계를 가상 남쪽 지점인 심연으로 끌어들여 비행 88.6초 시점에 지오펜스 침범 오작동을 유발한다. 나아가, 강제 보호 규정을 담당하는 제어 환경설정 (\texttt{PARAM\_SET})에 접근해 무선 채널 상실 시 자동 발동하는 귀환 절차 스위치를 인위적으로 차단한다(\texttt{FS\_THR\_ENABLE $\to$ 0}). 보호 RTL(Return-To-Launch) 절차는 즉각적으로 무력화되어 링크가 끊어져도 기체는 위험 지대에 한없이 체공(LOITER)하게 된다.
+%
+% 근거: \texttt{src/attacks/mission\_tamper.py}, \texttt{param\_tamper.py}; \texttt{docs/evidence/push\_mission\_param\_emergent/}. [방어: D-SIGN이 클래스 차단, D-MISSION(0.175 s 탐지) 및 D-PARAM(1.34 s 탐지 및 재확정 복구, ASR 1.0$\to$0.0)]
+% \textbf{T-UAV-7 · 미션/파라미터 변조.} MAVLink 미션 프로토콜(\texttt{MISSION\_WRITE\_PARTIAL\_LIST})과 \texttt{PARAM\_SET}은 v1 무인증이다. \textbf{미션 리라우트:} 위조 partial-list로 seq2를 홈 남쪽 180 m(150 m 정책 지오펜스 밖)로 재작성 $\to$ AUTO 트랙이 실제로 남쪽 $\sim$180 m까지 끌려가 88.6 s에 지오펜스 침범. D-MISSION이 무단 쓰기·plan-hash 변경을 0.175 s에 탐지, 오탐 0. \textbf{파라미터 변조 $\to$ 페일세이프 억제:} \texttt{PARAM\_SET}로 \texttt{FS\_THR\_ENABLE 1$\to$0} --- 이후 RC-링크 상실 시 보호 RTL이 더 이상 발동하지 못한다(baseline 1.15 s RTL vs 공격 시 LOITER 유지). D-PARAM이 1.34 s에 탐지·복구(재확정 $\to$ 억제 ASR 1.0$\to$0.0). 근거: \texttt{src/attacks/mission\_tamper.py}, \texttt{param\_tamper.py}; \texttt{docs/evidence/push\_mission\_param\_emergent/}. [방어: D-SIGN이 클래스 차단, D-MISSION/D-PARAM이 탐지+복구]
+\paragraph{\textbf{T-UAV-8 · ADS-B 유령 항공기 기만 (충돌 회피 악용)}} ~\\
+\textbf{공격 시나리오:} ISR UAV가 LOITER 중 ADS-B 충돌회피 (\texttt{AVD\_ENABLE=1})가 활성화된 상태에서, 공격자가 무인증 \texttt{ADSB\_VEHICLE} 프레임을 주입하여 399.6 m 이내로 진입하는 가상의 유령 항공기를 생성한다.\\
+\textbf{실험 결과:} 
+% 시스템이 유령 항공기를 실제 위협으로 오인하여 \textbf{0.49 s 만에 LOITER $\to$ AVOID\_ADSB 모드로 전환되고, 측방으로 $\sim$320 m 강제 회피} 후 복귀함으로써 원래의 임무 위치를 이탈한다. 저속 직진 접근(Ramp-in) 유령기 주입 시 기존 규칙(R1-R3)이 모두 우회됨을 포착하여 지속-접근 규칙 \textbf{R4(sustained-inbound)}를 추가 기술(\texttt{adsb\_xcheck.py})하였으며, 105 s (range 1238.6 m)에 포착 성공한다. 다만 R4는 CPA를 보지 않고 순접근만 판단하므로 정당한 수렴 교통에 오탐할 수 있는 정직한 잔여 한계 (CPA·방위율 게이트 필요)가 존재한다.
+공격자가 생성한 허상의 비행체 항적 정보를 바탕으로 충돌 회피 방어 모듈 (\texttt{AVD\_ENABLE})이 자동 대응을 개시해, 단 0.49초 만에 320 m 수준의 우발적 측방 회피 기동을 야기한다. 허상과 충돌하지 않으려는 자동 반사적 통제 로직 자체가, 기체를 의도된 주요 운용 지점에서 손쉽게 우회 및 배제하는 강력한 공격자의 지렛대 역할로 작용한다.
+% 근거: \texttt{docs/evidence/surf\_adsb\_spoof/}, \texttt{surf\_adsb\_rampin/}. [방어: D-ADSB 탐지(detect-only)]
+% \textbf{T-UAV-8 · ADS-B 유령 항공기 기만.} ISR UAV가 LOITER 중 ADS-B-in 충돌회피(\texttt{AVD\_ENABLE=1}) 활성. 무인증 \texttt{ADSB\_VEHICLE} 프레임 주입 $\to$ 유령 항공기(399.6 m inbound) 생성 $\to$ \textbf{LOITER$\to$AVOID\_ADSB 0.49 s 반응, $\sim$320 m 측방 회피} 후 LOITER 복귀 --- 유령이므로 진짜 위협은 없으나 기체가 임무 위치를 이탈한다(네이티브 회피 자체가 공격자의 지렛대). \textbf{특수 지위:} 별도 \texttt{src/attacks} 모듈이 아니라 증거 하니스 주입이며, 탐지기 D-ADSB만 shipped된다. 단일 계측런이며 저속·플로시블 램프-인은 회피 가능하다. 근거: \texttt{docs/evidence/surf\_adsb\_spoof/}. [방어: detect-only] \textbf{gap 실측 및 closing(추가 실측):} 위에서 지적한 회피 가능성을 실제로 검증하였다 --- 첫 관측 2497 m에서 12 m/s로 직진 접근하는 저속 유령기를 주입하면 R1--R3 규칙을 모두 회피한다(경보 0/205건). 이를 닫기 위해 지속-접근 규칙 \textbf{R4(sustained-inbound)}를 \texttt{adsb\_xcheck.py}에 추가하여, 근접 밖에서 획득되었으나 지속적으로 순접근하는 항적을 105 s(range 1238.6 m)에 포착하면서, 단순 통과 항적에는 오탐 0을 유지한다. 다만 R4 자체를 사후에 red-team한 결과 최근접점(CPA)을 보지 않고 순접근만 판단하므로 정당한 수렴 교통(예: 500 m 이격의 실제 착륙 접근기)에는 오탐할 수 있음을 확인하였다 --- CPA·방위율 게이트가 필요한 정직한 잔여 한계다(10.3절, 근거: \texttt{docs/evidence/surf\_adsb\_rampin/}).
+\subsection{UGV 도메인 --- 자율 호송/군수/정찰 무인차량}
+% UGV는 GPS-denied 도심·지하·터널·건물 내부에 더 자주·오래 노출되며, 지상 근접이라 근거리 개입 위험도 크다. 실측 통찰에 따르면 (i) 자율 (AUTO) 자체가 작동기 격리 계층이다 (사전계획 미션 중엔 수동 스틱 입력이 없어야 정상); (ii) 이동 중 모터 차단(in-motion disarm)에 대해 rover 펌웨어는 copter와 달리 방어하지 않는다 (플랫폼 특수 위험).
+% 지상 운용 로버 (Rover) 기체로 대변되는 UGV 도메인은 UAV와 확연히 다른 지상 운용 특수성을 갖는다. 도심, 터널, 건물 내부 등 빈번한 GPS 단절 구역 운용 환경에 노출되며 적대자나 외부 기기와 물리적으로 근접해 조우하기 쉽다. 특히, 로버 펌웨어 상에서는 주행 중 원격 차단 명령 (In-motion disarm)을 여과 없이 수용해 구동계를 완전히 중지시켜 버리는 플랫폼 측면의 특이 취약점이 큰 위협으로 작용한다.
+
+지상 운용 로버 (Rover) 기체로 대변되는 UGV 도메인은 UAV와 확연히 구별되는 지상 운용의 특수성을 지닌다. 도심, 터널, 건물 내부 등 GNSS 거부 (Denial) 및 단절 환경에 빈번하게 노출되며, 적대자 또는 외부 기기와 물리적으로 근접하여 조우할 가능성이 높다. 특히, 로버 펌웨어는 주행 중 원격 차단 명령 (In-motion disarm)을 여과 없이 수용하여 구동계를 완전히 중지시키는 플랫폼 고유의 취약점을 내포하고 있어 큰 위협으로 작용한다.
+
+\paragraph{\textbf{T-UGV-1 · 조향 채널 오버라이드}} ~\\
+\textbf{공격 시나리오:} ArduRover가 직선 경로를 주행 중인 상황에서, 공격자가 조향 제어 채널인 STEER (ch1) 단 하나의 채널만을 변조하여 고정된 위조 값을 주입하고 나머지 채널은 정상 통과시킨다.\\
+%\textbf{실험 결과:} 기체의 \textbf{heading (방위각) 이탈이 최대 $\approx$ 179.7--180°} 발생하여 사실상 완전 반전 주행을 유도하며, 이로 인해 \textbf{최대 $\approx$ 27.3 m의 경로 이탈} (임계치 30° 또는 5 m, baseline crosstrack $\approx$ 0.9 m)을 초래하며, 5회 시도 모두 성공하여 ASR 5/5를 기록한다.\\
+\textbf{실험 결과:} 기체의 방위각 (Heading) 이탈이 최대 약 179.7--180° 발생하여 사실상 완전한 반전 주행이 유도된다. 이로 인해 창발적 임무 결과로서 최대 27.3 m의 경로 이탈 (임계치 30° 또는 5 m, 대조군 교차항적오차 약 0.9 m)이 초래되며, 5회 시도 모두 성공하여 공격성공률 (ASR) 1.0 (5/5)을 기록한다.\\
+
+% 근거: \texttt{src/attacks/rover\_steering.py}; \texttt{docs/evidence/sweep\_UGV\_steering/}. 
+% [방어: D5 탐지 TTD 0.204 s --- 실운용 시스템에서는 실제 flight-mode 신호에 기반한 불변식 gating 방어 필요]
+
+% \textbf{T-UGV-1 · 조향 채널 오버라이드.} ArduRover 직선 경로 주행 중 STEER(ch1) 1채널만 위조 $\to$ \textbf{heading 이탈 최대 $\approx$179.7--180°}(사실상 완전 반전), \textbf{경로 이탈 최대 $\approx$27.3 m}(임계 30°/5 m, baseline crosstrack $\approx$0.9 m), ASR 5/5. 근거: \texttt{src/attacks/rover\_steering.py}; \texttt{docs/evidence/sweep\_UGV\_steering/}. [방어: D5 TTD 0.204 s --- production은 실제 flight-mode 신호에 불변식 gating 필요]
+
+\paragraph{\textbf{T-UGV-2 · 명령 주입 및 주행 중 모터 차단}} ~\\
+\textbf{공격 시나리오:} Rover가 AUTO 모드로 설정된 경로를 실제 추종 및 주행 중인 상황에서, 공격자가 악의적으로 위조된 HOLD 또는 RTL 모드 전환 명령 (\texttt{DO\_SET\_MODE})과 함께 이동 중 시동 잠금 (\texttt{DISARM}) 프레임을 주입한다.\\
+%\textbf{실험 결과:} 강제적인 HOLD 및 RTL 모드가 수용될 뿐만 아니라, 기체가 \textbf{1.05 m/s의 속도로 주행 중임에도 불구하고 disarm 명령이 최종 수용되어 모터 동력이 주행 중 완전히 차단}된다. 이는 드론 (Copter) 플랫폼이 공중 disarm 명령을 거절하는 보안 기제를 갖춘 것과 대조되는 지상 로버 플랫폼 고유의 특수 취약점이다.\\
+\textbf{실험 결과:} 강제적인 HOLD 및 RTL 모드 전환이 수용될 뿐만 아니라, 기체가 1.05 m/s의 속도로 주행 중임에도 불구하고 시동 잠금 명령이 최종 수용되어 모터 동력이 완전히 차단된다. 이는 공중 차단 명령을 거부하는 보안 기제를 갖춘 드론 플랫폼과 대조되는 지상 로버 플랫폼 고유의 특수 취약점이다.\\
+% 근거: \texttt{src/attacks/command\_injection.py}; \texttt{docs/evidence/gap2\_ugv\_roundout/}. 
+% [방어: R1/R2 명령 기반 IDS TTD 0.42--1.22 s 및 D-SIGN 방어]
+% \textbf{T-UGV-2 · 실제 AUTO 미션 중 명령 주입 + 이동 중 모터 차단.} rover가 실제 AUTO 경로추종 중, 위조 HOLD/RTL \texttt{DO\_SET\_MODE} + 이동 중 \texttt{DISARM}. HOLD·RTL 적용됨; \textbf{1.05 m/s 주행 중 disarm이 수용되어 모터가 이동 중 절단}된다 --- copter는 공중 disarm을 거부하나 rover는 수용하는 플랫폼 특수 취약이다. 근거: \texttt{src/attacks/command\_injection.py}; \texttt{docs/evidence/gap2\_ugv\_roundout/}. [방어: R1/R2 명령 IDS TTD 0.42--1.22 s + D-SIGN]
+\paragraph{\textbf{T-UGV-3 · GPS 완만 기만 (지상 기체 선형 이탈)}} ~\\
+\textbf{공격 시나리오:} Rover가 AUTO 모드로 주행 중인 상황에서, 공격자가 위성 항법 (GPS) 신호에 35 m 오차의 램프 (Ramp) 기만 신호를 점진적으로 주입한다.\\
+\textbf{실험 결과:} 기체의 \textbf{실제 경로 이탈이 최대 34.99 m까지 발생하여 공격자가 주입한 기만 오차값과 거의 1:1로 일치}하는 결과를 보인다. 수직 관성 및 기압 융합 가용성이 낮아 내부 필터 (EKF)의 이상치 저항력이 약한 지상 이동 로봇의 특성상 GPS 데이터를 전적으로 신뢰하게 되며, 이는 Copter 호버링 제어 시의 EKF 완전 저항 성능과 정반대로 기만이 실제 이탈 피해로 고스란히 전이되는 정직한 취약성을 입증한다.
+% 근거: \texttt{src/attacks/gps\_spoof.py}(rover); \texttt{docs/evidence/gap2\_ugv\_roundout/}. 
+% [방어: D3 탐지 TTD $\approx$ 1.01 s, 0 FP]
+% \textbf{T-UGV-3 · GPS 기만(지상 기체는 $\sim$1:1로 이탈).} rover AUTO 주행 중 35 m 램프 $\to$ \textbf{실제 경로 이탈 최대 34.99 m $\approx$ 주입값}. 지상 기체는 GPS를 $\approx$1:1로 신뢰하여(관성/기압 융합 여유가 작아 EKF 저항 약함) 헤드라인이 실제 효과와 근접한다 --- copter 호버 "40 m"가 tautological이었던 것과 정반대의 정직한 결과다. 근거: \texttt{src/attacks/gps\_spoof.py}(rover); \texttt{docs/evidence/gap2\_ugv\_roundout/}. [방어: D3 TTD $\approx$1.01 s, 0 FP]
+\subsection{위성통신 / BLOS 데이터링크 도메인 --- C2 중계}
+
+BLOS ISR·타격 운용에서 위성 링크는 C2 중계의 유일 경로다. GEO bent-pipe는 고지연·고손실·공유 대역이 상수이며, 무인기가 링크를 잃으면 링크 상실 페일세이프 (RTL/LOITER)로 강등돼야 하는데, 이 페일세이프 자체가 공격의 지렛대가 된다. 여기서 "위성"은 실제 위성 링크가 아니라 고지연·고손실 BLOS 특성을 userspace MITM MAVLink relay + shaper + flooder로 에뮬레이션한 것이다 (실 RF·kernel netem·root 없음).
+
+\paragraph{\textbf{T-SAT-1 · 링크 열화 (지연·지터·손실 주입)}} ~\\
+\textbf{공격 시나리오:} BLOS 위성 통신 경로상의 MITM Relay가 큐 (queue) 지연, 지터, 패킷 손실을 의도적으로 삽입하여 통신 프로파일을 악화시킨다 (+1.5 s 큐 지연, 0.4 s 지터, 30\% 패킷 손실률 주입).\\
+\textbf{실험 결과:} 명령 완료에 대한 RTT (왕복 시간)가 크게 증가하고 하향 Heartbeat 주기가 1.13 Hz에서 0.67 Hz로 저하된다. 다만, RTT가 약 30배 증가하는 현상은 시스템의 창발적 혼잡 제어 실패가 아니라, 공격자가 주입한 1.5 s의 큐 지연 (RTT $\approx$ 2 $\times$ 큐 지연)이 그대로 되읽힌 논리적 결과다.
+% 근거: \texttt{src/attacks/mav\_proxy.py} + \texttt{link\_shaper.py}; \texttt{docs/evidence/build\_datalink/}. 
+% [방어: D4 DEGRADED 탐지 TTD 1.967 s, 0 FP]
+
+% \textbf{T-SAT-1 · 링크 열화(지연·지터·손실 주입).} 경로상 MITM relay가 큐 지연+손실 삽입(degraded 프로파일: +1.5 s 큐, 0.4 s 지터, 30\% 손실). 완료명령 RTT 크게 증가, heartbeat rate 1.13$\to$0.67 Hz. \textbf{정직 표기:} "$\approx$30$\times$ RTT" 헤드라인은 tautological이다 --- 주입한 1.5 s 큐 지연을 되읽은 값(RTT $\approx$2$\times$큐)이지 창발적 혼잡 효과가 아니다. 근거: \texttt{src/attacks/mav\_proxy.py}+\texttt{link\_shaper.py}; \texttt{docs/evidence/build\_datalink/}. [방어: D4 DEGRADED TTD 1.967 s, 0 FP]
+
+\paragraph{\textbf{T-SAT-2 · DoS 블랙아웃}} ~\\
+\textbf{공격 시나리오:} 위성 링크 경로상의 Relay 노드가 유입되는 모든 데이터 프레임을 강제로 폐기 (drop)하는 서비스 거부 (DoS) 공격을 감행한다.\\
+\textbf{실험 결과:} Heartbeat 수신 간격이 \textbf{14.62--15.57 s까지 증가} (임계치 3.0 s)하여 링크 상실 페일세이프 발동 조건이 완전히 성립된다. 본 실험 캡처에서는 조건 충족 상태까지만 관측되며, 실제 RTL 또는 LOITER로의 자율 비행 모드 전환 직전 단계까지의 유효성을 검증한다.
+% 근거: \texttt{docs/evidence/sweep\_datalink\_dos/}. 
+% [방어: D4 LINK\_LOSS 탐지 TTD 2.967 s]
+
+% \textbf{T-SAT-2 · DoS 블랙아웃.} 경로상 relay가 전 프레임 폐기 $\to$ \textbf{heartbeat gap 14.62--15.57 s}(임계 3.0 s) $\to$ 링크상실 페일세이프 발동 조건 성립. \textbf{정직 caveat:} 조건 충족은 관측했으나 실제 RTL/LOITER 자율 모드전환까지는 이 캡처에서 미관측이다. 근거: \texttt{docs/evidence/sweep\_datalink\_dos/}. [방어: D4 LINK\_LOSS TTD 2.967 s]
+
+\paragraph{\textbf{T-SAT-3 · 대역 포화 플러딩 (명령 기아)}} ~\\
+\textbf{공격 시나리오:} GCS와 기체가 공유하는 상향 토큰 버킷 대역폭(2400 B/s) 환경에서, 경로상 위조 플러더 (Flooder)가 악성 프레임을 초당 약 3230개 ($\approx$ 3230 pps, 정상 캡처 대비 $\approx$ 28배) 대량 주입하여 상향 버킷을 완전히 포화시킨다.\\
+\textbf{실험 결과:} 상향 대역폭 독점으로 인해 정당한 제어 명령의 \textbf{패킷 손실률이 70--88.9\%까지 치솟으며 명령 기아 상태가 유발}된다 (대조군 손실률 0.0\%). 플러딩이 상향 링크만을 타깃으로 경쟁하기 때문에 완료 명령 RTT는 낮게 유지 ($\approx$ 120 ms)되고 하향 Heartbeat 역시 1.0 Hz를 정상 유지하여, 공유 버킷의 비대칭적 포화 특성이 완벽히 증명된다. 하향 전용 GCS 환경에서는 기체의 명령 기아 상태를 인지하지 못하는 Blind 현상이 발생 가능하다.
+% 근거: \texttt{src/attacks/mav\_flood.py}; \texttt{docs/evidence/fix\_flood/}. 
+% [방어: D4 Ingress-rate 탐지(>200/s 조건, 843배 폭증 포착 시 TTD 0.5 s) 및 D6 방어]
+
+% \textbf{T-SAT-3 · 대역 포화 플러딩(명령 기아).} 공유 상향 토큰버킷(2400 B/s) 위에서 경로상 플러더가 상향 버킷을 포화(\texttt{mav\_flood.py}, $\approx$3230 pps, 캡 대비 $\approx$28$\times$). 창발 결과: \textbf{명령 손실 70--88.9\%}(플러드 OFF 캡-only 대조군 손실 0.0\%). 완료명령 RTT는 낮게 유지($\approx$120 ms), 하향 heartbeat도 1.0 Hz 유지 --- 플러드가 상향 버킷만 경쟁하기 때문이며, 이는 공유버킷 포화를 증명한다(구 loopback 플러드는 흡수돼 denial=false였음). 근거: \texttt{src/attacks/mav\_flood.py}; \texttt{docs/evidence/fix\_flood/}. [방어: D4 ingress-rate$>$200/s TTD 0.5 s(843$\times$ surge) + D6 --- downlink-only GCS는 여전히 blind]
+
+\paragraph{\textbf{T-SAT-4 · 언사인드 MAVLink 재전송 (replay)}} ~\\
+\textbf{공격 시나리오:} 공격자가 BLOS 통신 링크에서 사전에 캡처한 보안 서명이 없는 정상 \texttt{SET\_MODE} 바이트 프레임을 가로챈 후, 나중에 동일하게 재주입한다.\\
+\textbf{실험 결과:} anti-replay 방어 메커니즘이 부재한 무인증 MAVLink 구조적 취약점으로 인해, 재전송된 프레임이 \textbf{기체에 그대로 수용되며 제어 모드가 강제 전환} (GUIDED $\to$ LOITER, 5회 시험 중 100\% 재수용 성공)된다. 본 런에서는 테스트 하니스의 즉각적인 재명령으로 임무 영향성이 상쇄되나, 즉각 재명령이 불가능한 \texttt{DISARM}이나 \texttt{RTL} 프레임 재전송 시 치명적인 무력화가 지속된다. MAVLink2 Signing (서명 구조)을 적용할 경우 이러한 재전송 프레임은 원리적으로 완전 차단됨을 검증한다.\\
+% 근거: \texttt{src/attacks/replay.py}; \texttt{docs/evidence/gap2\_replay\_integrity/}. 
+% [방어: D-REPLAY 탐지 TTD $\approx$ 0 s, 0 FP (1038건 정상 프레임 검증 시 오탐 제로); MAVLink2 Signing 적용 시 원리적 차단 가능]
+
+% \textbf{T-SAT-4 · 언사인드 MAVLink 재전송(replay).} BLOS 링크에서 캡처한 바이트 동일 \texttt{SET\_MODE} 프레임을 재주입. 재전송 프레임이 \textbf{재수용됨}(GUIDED$\to$LOITER, 5회 100\% 재수용) --- 진짜 취약점(언사인드 MAVLink에 anti-replay 전무). \textbf{정직 양면:} 본 런의 임무 영향은 $\approx$0(하니스가 즉시 재명령), 재명령되지 않는 DISARM/RTL 재전송은 지속된다. 원리적 차단은 MAVLink2 signing이 재전송 프레임을 outright reject한다(검증됨). 근거: \texttt{src/attacks/replay.py}; \texttt{docs/evidence/gap2\_replay\_integrity/}. [방어: D-REPLAY TTD $\approx$0, 0 FP/1038 clean; D-SIGN = 원리적 차단]
+
+% \subsection{이론적 주입량과 물리적 창발 결과의 교차 검증}
+
+% % \begin{table}[H]
+% % \centering
+% % \caption{헤드라인 주입값과 실제 창발 결과의 비교 (상세 재도출: \texttt{docs/honest\_effect\_metrics.md})}
+% % \label{tab:honesty_table}
+% % \renewcommand{\arraystretch}{1.25}
+% % \small
+% % \begin{tabularx}{\textwidth}{X X X}
+% % \toprule
+% % \textbf{공격} & \textbf{주입량(headline) / 실제 창발 결과} & \textbf{정직 판정} \\
+% % \midrule
+% % GPS 기만 (copter 호버) & 40 m / 실제 이탈 \textbf{0.009 m} & 주입값 tautological; EKF 완전 저항 \\
+% % GPS 기만 (copter AUTO) & 40 m / crosstrack \textbf{18.31 m}, WP 미도달 & 항법 중에만 창발, 그마저 $<$40 m \\
+% % GPS 기만 (rover AUTO) & 35 m / 실제 이탈 \textbf{34.99 m $\approx$ 1:1} & 지상 기체는 GPS $\sim$1:1 신뢰 \\
+% % Mag 기만 & raw 104.44° / EKF yaw 오염 \textbf{83.42°} & detect-only, 하류 트랙 미계측 \\
+% % IMU 바이어스 & - / 자세 평균 \textbf{47°}(피크 58°) & detect-only, 공존 IMU 페일오버 불가 \\
+% % Baro 스푸핑 & 18 m / 실제 강하 \textbf{$\sim$19.17 m $\approx$ 1:1} & 소스=상태(EKF 1차 수직); 정직 물리 \\
+% % Datalink 열화 & ``32$\times$ RTT" / RTT=2$\times$큐 (1.5 s) & RTT 헤드라인 tautological \\
+% % Datalink flood & 28$\times$ 대역 / 명령 손실 \textbf{88.9\%} & 창발적 기아 \\
+% % Replay & 1 프레임 / 100\% 재수용, 임무 영향 $\approx$ 0 & 취약은 진짜, 지속성은 payload 의존 \\
+% % \bottomrule
+% % \end{tabularx}
+% % \end{table}
+% \begin{table}[H]
+% \centering
+% \caption{헤드라인 주입값과 실제 창발 결과의 비교 (상세 재도출: \texttt{docs/honest\_effect\_metrics.md})}
+% \label{tab:honesty_table}
+% \renewcommand{\arraystretch}{1.3} 
+% \small
+% \begin{tabularx}{\textwidth}{@{} l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X @{}}
+% \toprule
+% \textbf{공격} & \textbf{주입량} & \textbf{실제 창발 결과} & \textbf{정직 판정} \\
+% \midrule
+% GPS 기만 (UAV 체공 유지 상태) & 40 m & 실제 이탈 \textbf{0.009 m} & 주입값 tautological; EKF 완전 저항 \\
+% GPS 기만 (UAV 주행 항법 상태) & 40 m & crosstrack \textbf{18.31 m}, WP 미도달 & 항법 중에만 창발, 그마저 $<$40 m \\
+% GPS 기만 (UGV 자체 항법 상태) & 35 m & 실제 이탈 \textbf{34.99 m $\approx$ 1:1} & 지상 기체는 GPS $\sim$1:1 신뢰 \\
+% 스푸핑 (지자기 모듈 교란) & raw 104.44° & EKF yaw 오염 \textbf{83.42°} & detect-only, 하류 트랙 미계측 \\
+% 스푸핑 (IMU/바이어스 전 방위) & - & 자세 평균 \textbf{47°}(피크 58°) & detect-only, 공존 IMU 페일오버 불가 \\
+% 기압 센서 교란 및 고도 침탈 & 18 m & 실제 강하 \textbf{$\sim$19.17 m $\approx$ 1:1} & 소스=상태(EKF 1차 수직); 정직 물리 \\
+% 데이터링크 망 지연 (열화) & 32$\times$ RTT & RTT=2$\times$큐 (1.5 s) & RTT 헤드라인 tautological \\
+% 데이터 대역 범람 포화 유도 & 28 $\times$ 대역 & 명령 손실 \textbf{88.9\%} & 창발적 기아 \\
+% Replay & 1 프레임 & 100\% 재수용, 임무 영향 $\approx$ 0 & 취약은 진짜, 지속성은 payload 의존 \\
+% \bottomrule
+% \end{tabularx}
+% \end{table}
+
+% 본 절의 정량적 평가를 관통하는 두 가지 핵심 축은 다음과 같다.
+% 첫째는 \textbf{탐지와 방어의 괴리 (탐지 $\neq$ 무력화)}로 GNSS 및 물리 센서 기만 공격 시, 시스템 내부 탐지기는 오탐 없이 신속하게 (0.6$\sim$2.7초) 이상 상태를 식별한다. 그러나 탐지 이후 자율 페일세이프 메커니즘이 능동적으로 개입하지 않아, 기체가 오염된 제어 궤적을 그대로 추종하는 구조적 한계가 다수 관찰된다.
+% 둘째는 \textbf{표본 크기에 따른 실험적 한계 명시}로, RC 및 조향 채널 오버라이드와 같은 제어 스위핑 실험은 5회의 반복 부팅을 거쳐 높은 재현성을 확보한다. 반면, 기체의 물리적 추락 및 파손 위험이 동반되는 위치/자세 창발 실험 (GNSS, IMU, 기압계 및 미션 변조)은 소표본 (n=1$\sim$5)으로 진행되었음을 학술적 엄밀성 관점에서 명시한다.
+
+% \begin{table}[H]
+% \centering
+% \caption{분류군에 따른 공격 주입량과 실제 도출된 창발 시스템 효과 비대칭성 분석 (\texttt{docs/honest\_effect\_metrics.md})}
+% \label{tab:honesty_table}
+% \renewcommand{\arraystretch}{1.25}
+% \small
+% \begin{tabularx}{\textwidth}{L X X}
+% \toprule
+% \textbf{공격 종류 및 시나리오} & \textbf{표면 주입량 / 실제 창발 도출 결과} & \textbf{정직성 도메인 영향 판정} \\
+% \midrule
+% GPS 기만 (UAV 체공 유지 상태) & 40 m 수치 주입 / 대상 기체 최종 이탈 \textbf{0.009 m} & 대상 UAV EKF 보정 모듈의 완벽한 탄성 \\
+% GPS 기만 (UAV 주행 항법 상태) & 40 m 수치 주입 / 측방 \textbf{18.31 m 이탈} 발생 & 주행 항법(AUTO) 동작 시만 왜곡 현상 부활 \\
+% GPS 기만 (UGV 자체 항법 상태) & 35 m 수치 주입 / 실 기동 \textbf{34.99 m 이탈 (동일)} & 지상 기동 장비의 GPS 전면 의존도 확인 \\
+% 스푸핑 (지자기 모듈 교란) & 원시 편차 104° 주입 / EKF \textbf{최종 왜곡 83.42°} & 보조 보정 검증 모듈이 기능하나 단일 방어 실패 \\
+% 스푸핑 (IMU/바이어스 전 방위) & 전체 오염 램프 / 수평 진값 대비 \textbf{자세 47° 편차} & 예비 센서군 통합 편차 유도 시 대체 모듈 소멸 \\
+% 기압 센서 교란 및 고도 침탈 & 고도 강하 18 m 주입 / 내부 고도 \textbf{19.17 m 강하} & 기압 고도의 전면 의존도로 유도량 전면 수용 \\
+% 데이터링크 망 지연 (열화) & 30배 이상 지연 RTT 발생 / RTT 수용 한계 치달 & 물리적 시간 한계를 그대로 측정함 (동어반복) \\
+% 데이터 대역 범람 포화 유도 & 총량의 $\sim$28배 대역 소진 / 전송 명령 \textbf{약 88.9\% 손실} & 한정된 대역을 탈취하며 즉각적인 기아 유발 \\
+% 무결성 상실 (재전송 공격) & 1프레임 복사 공격 / 방어막 부재 \textbf{100\% 재수용} & 시스템 설계 기반의 보호 매커니즘 의존 취약 \\
+% \bottomrule
+% \end{tabularx}
+% \end{table}
+
+% 두 가지 축이 전 절을 관통한다. \textbf{(1) 탐지 $\neq$ 무력화:} 센서/GNSS 스푸핑에서 탐지기는 빠르게(0.6$\sim$2.7 s) 0 FP로 발화하나, 이 런들에서 자율 페일세이프는 대부분 개입하지 않았다. \textbf{(2) 표본 크기:} 5회 fresh-boot 스윕(RC/조향)은 robust하나, 창발 임무 수치(GNSS/IMU/baro/mission)는 소표본(n=1$\sim$5)이다.
+
+\subsection{도메인별 매핑 및 측정된 공격 합성}
+
+표~\ref{tab:scenario_mapping}은 14개 구현 공격 모듈 + ADS-B (탐지기 전용)로 구성된 15개 시나리오를 구현 모듈·정직한 창발 지표·증거 경로로 정리한 것이다.
+
+\begin{table}[H]
+\centering
+\caption{플랫폼별 공격 시나리오에 따른 물리적 창발 지표 및 실증 데이터 추적표 (Traceability Matrix)}
+\label{tab:scenario_mapping}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabularx}{\textwidth}{@{} l l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X @{}}
+\toprule
+\textbf{시나리오 식별자} & \textbf{도메인} & \textbf{정량적 창발 지표} & \textbf{증거 데이터 경로} \\
+\midrule
+T-UAV-1 RC 오버라이드 & UAV & 최대 수평 이탈 65.2 m (ASR 5/5) & \texttt{sweep\_UAV\_rc\_override/} \\
+T-UAV-2 위조 명령 주입 & UAV & 임무 중단 (abort), 2/3 WP 미도달; 방어 검증(ASR 1.0$\to$0.0) & \texttt{gap\_cmd\_injection\_ids/}, \texttt{gap2\_mavlink\_signing/} \\
+T-UAV-3 GPS 완만 기만 & UAV & 항법 중 18.31 m 측방 이탈 (정지 체공 시 0.009 m) & \texttt{gap\_gps\_spoof\_d3/} \\
+T-UAV-4 GNSS 재밍/거부 & UAV & $\sim$8.13초 후 강제 LAND 전환, 임무 중단 (탐지 한계) & \texttt{push\_gnss\_jam\_emergent/} \\
+T-UAV-5 지자기 센서 기만 & UAV & Raw 104.44° 주입 $\to$ EKF 융합 방위각 83.42° 오염 & \texttt{gap2\_sensor\_spoof/} \\
+T-UAV-6 IMU/기압계 기만 & UAV & 평균 자세 47° 오염; 기압계 강하 최대 19.17 m (대체 불가) & \texttt{push\_imu\_spoof\_emergent/}, \texttt{push\_baro\_spoof\_emergent/} \\
+T-UAV-7 미션/파라미터 변조 & UAV & 지오펜스 침범 유도 (0.175 s); 복구 및 차단 (ASR 1.0$\to$0.0) & \texttt{push\_mission\_param\_emergent/} \\
+T-UAV-8 ADS-B 유령기 주입 & UAV & 0.49초 내 강제 회피 (AVOID) 발동, 320 m 궤적 이탈 & \texttt{surf\_adsb\_spoof/} \\
+T-UGV-1 조향 채널 오버라이드 & UGV & 방위각 179.7° 반전, 27.3 m 경로 이탈 (ASR 5/5) & \texttt{sweep\_UGV\_steering/} \\
+T-UGV-2 명령 주입 및 차단 & UGV & 1.05 m/s 주행 중 Disarm 수용 (지상 기체 고유 취약성) & \texttt{gap2\_ugv\_roundout/} \\
+T-UGV-3 GPS 완만 기만 & UGV & 35 m 기만 $\to$ 실제 34.99 m 이탈 ($\approx$1:1 신뢰 전이) & \texttt{gap2\_ugv\_roundout/} \\
+T-SAT-1 링크 열화 (지연/손실) & SATCOM & Heartbeat 1.13$\to$0.67 Hz 저하, RTT 지연 (동어반복) & \texttt{build\_datalink/} \\
+T-SAT-2 DoS 블랙아웃 & SATCOM & Heartbeat 단절 14.62초 (링크 상실 페일세이프 조건 충족) & \texttt{sweep\_datalink\_dos/} \\
+T-SAT-3 대역 포화 플러딩 & SATCOM & 정상 제어 명령 88.9\% 손실 (대조군 0\% 대비 기아 상태) & \texttt{fix\_flood/} \\
+T-SAT-4 언사인드 재전송 & SATCOM & 프레임 100\% 재수용; Signing 적용 시 원리적 차단 검증 & \texttt{gap2\_replay\_integrity/} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% \begin{table}[H]
+% \centering
+% \caption{시나리오 $\to$ 구현 $\to$ 증거 추적표}
+% \label{tab:scenario_mapping}
+% \renewcommand{\arraystretch}{1.2}
+% \scriptsize
+% \begin{adjustbox}{width=\textwidth}
+% \begin{tabular}{l l p{4.6cm} p{4.4cm}}
+% \toprule
+% \textbf{시나리오} & \textbf{도메인} & \textbf{정직한 창발 지표} & \textbf{증거 경로} \\
+% \midrule
+% T-UAV-1 RC override & UAV & 이탈 65.2 m, ASR 5/5 & \texttt{sweep\_UAV\_rc\_override/} \\
+% T-UAV-2 command inj & UAV & 임무 abort, 2/3 WP 미도달; ASR 1.0$\to$0.0(signing) & \texttt{gap\_cmd\_injection\_ids/}, \texttt{gap2\_mavlink\_signing/} \\
+% T-UAV-3 GPS spoof & UAV & 항법중 18.31 m, WP 미도달(호버 0.009 m) & \texttt{gap\_gps\_spoof\_d3/} \\
+% T-UAV-4 GNSS jam & UAV & AUTO$\to$LAND 8.13 s(n=5), WP 3/4; detect-only & \texttt{push\_gnss\_jam\_emergent/} \\
+% T-UAV-5 mag spoof & UAV & raw 104.44°/EKF yaw 83.42°(detect-only) & \texttt{gap2\_sensor\_spoof/} \\
+% T-UAV-6 IMU/baro & UAV & 자세 47°; baro 강하 19.17 m; detect-only(n=3) & \texttt{push\_imu\_spoof\_emergent/}, \texttt{push\_baro\_spoof\_emergent/} \\
+% T-UAV-7 mission/param & UAV & 지오펜스 침범(0.175 s); ASR 1.0$\to$0.0 복구 & \texttt{push\_mission\_param\_emergent/} \\
+% T-UAV-8 ADS-B 유령 & UAV & AVOID\_ADSB 0.49 s, 회피 320 m; 단일런 & \texttt{surf\_adsb\_spoof/} \\
+% T-UGV-1 steering & UGV & heading 179.7°, 이탈 27.3 m, ASR 5/5 & \texttt{sweep\_UGV\_steering/} \\
+% T-UGV-2 cmd inj+disarm & UGV & 이동중 disarm 수용(플랫폼 특수) & \texttt{gap2\_ugv\_roundout/} \\
+% T-UGV-3 GPS spoof & UGV & 실제 이탈 34.99 m $\approx$1:1 & \texttt{gap2\_ugv\_roundout/} \\
+% T-SAT-1 link degrade & SATCOM & RTT 증가(tautological), HB 1.13$\to$0.67 Hz & \texttt{build\_datalink/} \\
+% T-SAT-2 DoS blackout & SATCOM & heartbeat gap 14.62 s$>$3 s 조건 & \texttt{sweep\_datalink\_dos/} \\
+% T-SAT-3 flood & SATCOM & 명령 손실 88.9\%(대조군 0\%) & \texttt{fix\_flood/} \\
+% T-SAT-4 replay & SATCOM & 100\% 재수용(취약), signing 원리 차단 & \texttt{gap2\_replay\_integrity/} \\
+% \bottomrule
+% \end{tabular}
+% \end{adjustbox}
+% \end{table}
+
+\textbf{측정된 공격 합성 (KC-A/KC-B, 실측).} 개별 시나리오를 문서화된 합성으로 실측한다. 두 합성 모두 라이브러리의 문서화된 공격만 사용하며 신규 기법·회피 튜닝·운용자 기만이 없다(\texttt{novel\_or\_evasion: false}).
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{KC-A · 페일세이프 무력화 및 치명적 링크 상실 연쇄 (n=5):}
+    Stage 1에서 \texttt{param\_tamper.py}를 이용해 보호 변수 (\texttt{PARAM\_SET FS\_GCS\_ENABLE})를 정상 (1)에서 무력화 (0) 상태로 위조 (rogue sysid 200)한 뒤, Stage 2에서 데이터링크 DoS 블랙아웃을 유발한다. 
+    실험 결과, 페일세이프가 정상일 때는 네이티브 귀환 (RTL)이 100\% 발동하여 홈 이탈이 \textbf{0.04 m}에 그쳤으나, 무력화된 상태에서는 RTL이 전혀 개입하지 못해 기체가 \textbf{100\% 표류하며 최대 200.4 m의 치명적 이탈}이 발생했다. 이는 단일 DoS 공격 시에는 생존 가능한 시스템이라도, 사전 파라미터 변조를 통해 치명적인 파국으로 유도할 수 있음을 입증하는 도메인 간 공격 연쇄 (Cross-domain Kill-chain)의 실증적 사례다. (근거: \texttt{docs/evidence/enh\_killchain\_failsafe\_blackout/})
+
+    \item \textbf{KC-B · GPS 및 기압 센서 복합 기만 (n=3):}
+    UAV의 AUTO 비행 중 GPS 수평 기만과 기압계 수직 스푸핑을 동시에 실행한다. 
+    실측된 3D 공간 위치 오차는 정상 상태에서 0.48 m, GPS 단독 기만 시 29.39 m, 기압계 단독 기만 시 17.63 m이나, \textbf{복합 기만 시 34.28 m}로 증폭된다. 
+    여기서 도출된 정직한 발견은 복합 공격의 피해가 단순한 초가법적 (Super-additive) 시너지가 아니라, 수평 및 수직 축 오차의 \textbf{직교합 (quadrature, $34.28 \approx \sqrt{29.39^2+17.63^2} = 34.27$ m)}과 정확히 일치한다는 점이다. 이 연쇄 공격의 진정한 위협은 피해량의 비선형적 폭증보다는, 수평·수직 채널을 동시에 오염시켜 내부 교차 검증 모듈 (D3 및 D-BARO)의 다중 발화를 유도하고 시스템의 복구 결정을 교란하는 데 있다. (근거: \texttt{docs/evidence/enh\_killchain\_compound\_sensor/})
+\end{itemize}
+% \begin{itemize}[leftmargin=*]
+%     \item \textbf{KC-A · 페일세이프 무력화 $\to$ 치명적 링크상실(n=5).} Stage 1 = \texttt{param\_tamper.py}가 \texttt{PARAM\_SET FS\_GCS\_ENABLE 1$\to$0} 위조(rogue sysid 200); Stage 2 = 데이터링크 DoS 블랙아웃. FS\_GCS 정상(=1)이면 네이티브 RTL 100\% 발동·홈 이탈 \textbf{0.04 m}, 무력화(=0)면 RTL 0\%·\textbf{100\% 표류·홈 이탈 200.4 m}. 동일한 블랙아웃이 페일세이프 정상 시엔 생존 가능하나 Stage-1이 이를 무력화하면 치명적이 된다 --- 파라미터 변조가 DoS를 치명화하는 측정된 도메인 간 연쇄다. 근거: \texttt{docs/evidence/enh\_killchain\_failsafe\_blackout/}.
+%     \item \textbf{KC-B · 복합 GPS + 기압 센서 공격(n=3).} GPS 수평 기만 + 기압 수직 스푸핑을 copter AUTO에서 동시 실행 $\to$ 진짜 3D 위치 오차: clean 0.48 m / GPS만 29.39 m / baro만 17.63 m / \textbf{복합 34.28 m}. \textbf{정직한 발견:} 복합은 초가법(super-additive)이 아니라 \textbf{직교합(quadrature)}과 일치한다($34.28 \approx \sqrt{29.39^2+17.63^2}=34.27$ m). 가치는 수평·수직 채널을 동시 오염시켜 두 교차검증(D3 + D-BARO)이 모두 발화하게 만드는 데 있다. 근거: \texttt{docs/evidence/enh\_killchain\_compound\_sensor/}.
+% \end{itemize}
+
+\subsection{독트린 킬체인(KC-3/KC-4)과 CVE 앵커링}
+
+\begin{center}
+\fbox{\parbox{0.95\textwidth}{\textbf{정직성 경계.} 아래 KC-3/KC-4는 이미 측정된 primitive들의 도트린 수준 합성 (design-level composition)이며 신규 라이브 SITL 런이 \textbf{아니다}. 각 단계는 앞서 측정한 창발 지표에 매핑되고, 시퀀싱만 실제 사건 도트린을 따른다. KC-A/KC-B (실측 합성)와는 명확히 구분된다.}}
+\end{center}
+
+\begin{itemize}[leftmargin=*]
+    \item \textbf{KC-3 · C2 거부 및 GNSS 탈취 연쇄 (C2 Denial $\to$ Loss-link $\to$ GNSS Spoofing):} 
+    본 연쇄 공격은 2011년 이란의 RQ-170 나포 사례~\cite{humphreys_testimony_2012} 및 우크라이나전 (Krasukha-4 등 전자전 체계 운용)~\cite{rusi_russian_airwar_2022}에서 관찰된 실전 교리 (doctrine anchor)를 차용한 모델이다. 
+    ① 데이터링크 DoS 및 재밍을 통해 통신 블랙아웃을 유도하여 기체의 링크 상실 페일세이프를 강제 촉발한다 (실측 발동 시간 $\approx$14.6 s). 
+    ② 기체가 자율적으로 예측 가능한 페일세이프 궤적에 돌입하면, 
+    ③ 완만한 GPS 기만을 주입하여 기체의 위치를 은밀히 견인 (실측 이탈량: UAV AUTO 18.31 m, UGV 34.99 m)함으로써 방어선을 우회시키거나 탈취 목적의 착륙을 유도한다.
+
+    \item \textbf{KC-4 · 페일세이프 무기화 (weaponization of failsafe):} 
+    기체의 자율 복구 메커니즘 자체를 공격 벡터로 역이용하는 고도화된 시나리오다. 
+    ① GNSS 및 RC 링크 재밍을 가하여 물리적 페일세이프를 강제로 발동시킨다 (실측 결과: GNSS 재밍 시 8.19 s 만에 AUTO$\to$LAND 강제 전환). 
+    ② 이후 기체가 예측 가능한 귀환 및 비상 절차에 돌입하는 시점을 악용한다. 파라미터 변조를 통해 홈 지점을 악의적으로 덮어쓰거나 (D-PARAM 방어 모듈이 1.34 s 내 무단 쓰기 포착), 미션 변조를 통해 결정론적인 귀환 회랑 (corridor) 및 지오펜스 경로상에 매복하여 기체의 통제권을 완전히 탈취한다.
+\end{itemize}
+
+% \begin{itemize}[leftmargin=*]
+%     \item \textbf{KC-3 "C2 거부 $\to$ loss-link $\to$ GNSS 탈취"}(도트린 앵커: 이란 RQ-170 나포 2011~\cite{humphreys_testimony_2012}; 우크라이나 Krasukha-4/Borisoglebsk-2 vs Bayraktar TB2, Shahed spoofing~\cite{rusi_russian_airwar_2022}): ① datalink DoS/jam(측정된 블랙아웃 $\to$ loss-link 페일세이프 $\approx$14.6 s) $\to$ ② 기체가 예측 가능한 loss-link 페일세이프에 진입 $\to$ ③ GPS 완만 기만(측정된 T-UAV-3: AUTO crosstrack 18.31 m / rover 34.99 m)이 페일세이프 도중 위치를 끌어 우회·착륙시킨다.
+%     \item \textbf{KC-4 "페일세이프 무기화"}: ① GNSS/RC 재밍으로 페일세이프 강제(측정된 GNSS-jam AUTO$\to$LAND 8.19 s) $\to$ ② 예측 가능한 귀환을 악용 --- HOME 지점을 param-tamper(D-PARAM이 1.34 s에 쓰기 포착)하거나, 결정론적 RTL 회랑/지오펜스를 mission-tamper로 매복한다.
+% \end{itemize}
+
+\textbf{MAVLink2 서명의 한계} 
+MAVLink2에 보안 서명 메커니즘을 적용하더라도, 다음과 같은 구조적 우회 기법이 존재한다. 
+(a) \textbf{타임스탬프 종속성 악용:} 서명 검증용 타임스탬프가 위성 시간에 동기화된다는 점을 악용하여, 공격자가 GPS 스푸핑으로 기체의 시간을 조작하면 anti-replay 윈도우가 비정상적으로 확장된다. 이는 HMAC 비밀키를 직접 탈취하지 않더라도, 과거에 캡처된 정당한 서명 프레임을 임의의 시점에 강제로 재수용시킬 수 있는 취약점 (replay-window 남용)으로 이어진다. 
+(b) \textbf{비대칭적 서명 강제 (asymmetric enforcement):} 기체 측 설정에서 서명 검증을 엄격하게 강제하지 않을 경우, 서명이 누락된 위조 프레임이 시스템에 그대로 주입된다. 
+결과적으로 signing 단독 적용만으로는 시스템을 온전히 보호할 수 없으며, signing을 기반으로 센서/명령 교차 검증 및 파라미터 방어 모듈 (D3, D2, D-PARAM)이 유기적으로 결합된 \textbf{다계층 심층 방어 스택 (layered defense stack)}을 구축해야만 실효성 있는 정직한 통제가 완성된다.
+% \textbf{Signing은 필요조건이나 충분조건이 아니다.} MAVLink2 signing에도 문서화된 우회가 있다: (a) 서명 타임스탬프가 GPS 유도라서, GPS 스푸퍼가 이를 조작하면 anti-replay 윈도를 넓혀 정당하게 서명된 캡처 프레임을 이후 재수용시킬 수 있다(HMAC 비밀키는 여전히 필요하므로 키 없는 위조가 아니라 replay-window 남용); (b) 기체가 서명을 요구하지 않으면 무서명 프레임이 그대로 주입된다(비대칭 강제). 따라서 signing 단독이 아니라 signing + D3 + D2 + D-PARAM의 \textbf{계층화된 스택}이 정직한 통제다(6장).
+
+\begin{table}[H]
+\centering
+\caption{공인 취약점 (CVE) 및 실제 전장 사례와 본 연구의 위협 모델 간 교차 매핑 (anchoring)}
+\label{tab:cve_anchoring}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabularx}{\textwidth}{@{} l >{\raggedright\arraybackslash}X @{}}
+\toprule
+\textbf{참조 문헌 및 사례} & \textbf{본 연구 위협 모델과의 관련성} \\
+\midrule
+CVE-2020-10283~\cite{cve202010283} & MAVLink 프로토콜의 GCS 신원 검증 부재; 시스템 ID (SysID) 사칭 및 악성 제어 명령 주입 공격 (T-UAV-2 등)의 근본 원인 \\
+이란 RQ-170 나포 (2011)~\cite{humphreys_testimony_2012} & C2 통신 거부 후 GNSS 기만을 통한 강제 착륙 유도; 본 연구의 KC-3 (C2 거부 $\to$ GNSS 탈취) 연쇄 공격의 실전 교리적 배경 \\
+우크라이나전 전자전(EW)~\cite{rusi_russian_airwar_2022} & Krasukha-4/Borisoglebsk-2 체계의 복합 재밍 및 스푸핑 (TB2, Shahed 대상); KC-3 및 KC-4 연쇄 공격의 전술적 근거 \\
+Psiaki \& Humphreys~\cite{psiaki_humphreys_2016} & 정교한 위상 동기화 (seamless) GPS 스푸핑 및 미코닝 (meaconing); 단순 궤적 표류를 넘어서는 실질적 탈취 기법 \textbf{(문헌적 식별, 본 실증 구현 제외)} \\
+Son et al. (USENIX Sec 2015)~\cite{son2015rocking} & 음향 공진을 이용한 MEMS 자이로스코프 교란 및 추락 유도; 물리적 센서 기판 대상 공격 클래스 \textbf{(문헌적 식별, 본 실증 구현 제외)} \\
+Trippel et al. (WALNUT)~\cite{trippel2017walnut} & 악의적 음향파 주입을 통한 MEMS 가속도계 스푸핑 기법 \textbf{(문헌적 식별, 본 실증 구현 제외)} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% \begin{table}[H]
+% \centering
+% \caption{CVE / 실제 사건 앵커링}
+% \label{tab:cve_anchoring}
+% \renewcommand{\arraystretch}{1.2}
+% \small
+% \begin{tabularx}{\textwidth}{l X}
+% \toprule
+% \textbf{참조} & \textbf{관련성} \\
+% \midrule
+% CVE-2020-10283~\cite{cve202010283} & MAVLink이 GCS 신원을 검증하지 않음 --- sysid 사칭/주입 클래스의 뿌리 \\
+% Iran RQ-170(2011)~\cite{humphreys_testimony_2012} & C2 거부 $\to$ GNSS 기만 착륙 --- KC-3 도트린 \\
+% Ukraine EW(Krasukha-4/Borisoglebsk-2)~\cite{rusi_russian_airwar_2022} & Jam+spoof vs TB2; Shahed spoofing --- KC-3/KC-4 도트린 \\
+% Psiaki \& Humphreys~\cite{psiaki_humphreys_2016} & 무결절(seamless) GPS 스푸핑 탈취 + meaconing --- 단순 drift를 넘는 현실 기법(\textbf{명명, 미구현}) \\
+% Son et al., USENIX Security 2015~\cite{son2015rocking} & 음향 공진 MEMS 자이로 드론 추락 --- 센서 기판 클래스(\textbf{명명, 미구현}) \\
+% Trippel et al.(WALNUT)~\cite{trippel2017walnut} & 음향 MEMS 가속도계 스푸핑(\textbf{명명, 미구현}) \\
+% \bottomrule
+% \end{tabularx}
+% \end{table}
+
+\subsection{요약}
+본 위협 모델이 제시하는 독창성과 기여도는 크게 두 가지 축으로 요약된다.
+\textbf{첫째, 실제 운용 환경을 반영한 현실적 위협 합성 (realistic synthesis)이다.} 
+BLOS 통신 경로상의 노출, GNSS 거부 환경, 무인증 제어 프로토콜 등 3대 사이버-물리 도메인의 실제 운용 특수성을 심층 분석하여 15개의 단일 공격 시나리오와 4개의 복합 킬체인을 도출하며, 이 중 14개 시나리오를 ArduPilot SITL 환경에 직접 구현함으로써 단순한 이론적 모델링을 넘어 실증적인 파급력을 계측한다.
+\textbf{둘째, 객관적이고 정직한 평가 자체를 기술적 완성도로 승화시킨다.} 
+본 연구는 공격자의 표면적 주입량과 기체의 실제 창발적 피해를 엄격히 구분한다. 예컨대 동일한 40 m의 GPS 기만 오차를 주입하더라도 기체의 운용 맥락 (UAV 정지 체공 시 0.009 m 이탈, UAV 자동 항법 시 18.31 m 이탈, UGV 지상 항법 시 34.99 m 이탈)에 따라 물리적 파급력이 극명하게 달라짐을 실증한다. 또한, `탐지 성공이 곧 위협의 무력화를 의미하지 않는다 (탐지 $\neq$ 방어)'는 CPS 보안의 구조적 한계를 짚어내고, 실측 데이터로 검증된 연쇄 공격 (KC-A/B)과 실전 교리 기반의 위협 시나리오 (KC-3/4), 그리고 문헌상으로 식별되나 실증 범위를 벗어난 기법 간의 경계를 일관되게 명시함으로써 연구의 학술적 투명성과 신뢰성을 극대화한다.
+% 본 위협 모델의 창의성은 두 축에 있다. 첫째, \textbf{현실적 합성} --- 세 방산 도메인의 실제 운용 특수성(BLOS on-path 노출, 상시 GNSS 거부, 무인증 제어 프로토콜)에서 15개 공격 시나리오와 4개 킬체인 합성을 도출하고, 그중 14개를 실제 ArduPilot SITL 위에서 구현·측정하였다. 둘째, \textbf{정직성 자체가 기술적 완성도} --- GPS 40 m 주입이 체공기엔 0.009 m, 항법 중엔 18.31 m, rover엔 34.99 m로 다르게 나타난다는 구분, "탐지 $\neq$ 무력화", "측정된 합성 KC-A/B vs 도트린 합성 KC-3/4", "명명하되 미구현" 경계를 일관되게 유지한다.
+
+
+
+

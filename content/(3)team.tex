@@ -1,0 +1,114 @@
+\section{팀 구성 및 역할 분배 · 전문성}
+
+본 팀 BombTEE는 성균관대학교 소프트웨어학과 SecAI 연구실 소속 팀이다. 
+%
+SecAI 연구실은 2021년부터 시스템·소프트웨어 보안을 중심으로 연구하며, 
+AI를 활용한 보안 (AI for Security)과 AI 모델 자체에 대한 보안 (Security for AI)를 두 핵심 축으로 삼는다.
+%
+SecAI 연구실의 연구 영역은 전통적 시스템 보안과 AI 보안을 함께 포함한다. 전통적 시스템 보안 영역에서는 바이너리 분석, 디컴파일 코드 분석, 소프트웨어 취약점 탐지, 취약점 근본 원인 분석, 피싱 탐지, 디지털 포렌식 등을 다룬다. 
+%
+AI 보안 영역에서는 검색 증강 생성 (Retrieval-Augmented Generation, RAG) 시스템에 대한 지식 오염 (Knowledge corruption) 방어, 개인정보 비학습 (Machine unlearning), 자율 AI 에이전트의 신뢰 경계 (Trust boundary) 기반 공격면 분석, 모델 컨텍스트 프로토콜 (Model Context Protocol, MCP) 및 에이전트 간 통신 (Agent-to-Agent, A2A) 프로토콜 보안을 다룬다.
+%
+이러한 연구 성과는 S\&P, CCS, NDSS, ICSE, FSE, ACSAC, USENIX Security 등 시스템/소프트웨어 보안 분야 최상위 국제 학회에 다수 게재되었으며, IEEE S\&P 2024와 ACM CCS 2025에서 각각 Distinguished Paper Award를 수상하는 등 대외적으로도 연구 역량을 인정받고 있다. 본 연구에서도 이러한 AI 보안 전문성을 바탕으로, 프로토콜 계층 공격뿐 아니라 LLM 에이전트 기반 지휘관 아키텍처까지 아우르는 실측 방어 체계를 설계·구현하였다.
+
+\subsection{역할 분배}
+
+본 팀은 방산 무인체계 보안이라는 주제를 \textbf{RED (공격 설계)·BLUE (탐지·예방 엔지니어링)·AI 에이전트 아키텍처·평가/정직성 검증 (QA)}의 네 기능으로 나누어 역할을 분배하였다. 각 팀원은 자신이 주도한 기능의 설계와 구현을 책임지되, 공격 모듈이 탐지·게이트웨이·에이전트로 이어지는 단일 파이프라인으로 통합되도록 상호 검증하며 협업하였다.
+
+% \begin{table}[t!]
+% \centering
+% \caption{팀 구성 및 역할 분배 --- 역할 $\times$ 리포지토리 대응}
+% \label{tab:team_role}
+% \renewcommand{\arraystretch}{1.35}
+% \begin{adjustbox}{width=\textwidth}
+% \begin{tabular}{l l p{3.6cm} p{5.2cm} l}
+% \toprule
+% \textbf{역할} & \textbf{담당} & \textbf{핵심 전문성} & \textbf{주 담당 리포지토리 영역} & \textbf{직위} \\
+% \midrule
+% A. RED --- 공격 설계·위협 독트린 & 김민석, 권유정 & 방산 무인체계 운용 이해, MAVLink 프로토콜, 위협 모델링, 킬체인 구성 & \texttt{src/attacks/}(14), \texttt{src/agents/red\_\{uav,ugv,satellite\}.py} & 박사과정생 \\
+% B. BLUE --- 탐지·예방 엔지니어링 & 전형준 & EKF/센서 융합, 이상탐지, 제어 불변식, 실시간 방어 제어 설계 & \texttt{src/defenses/}(19), \texttt{*\_hardened.py}, \texttt{signing\_gateway.py} & 석사과정생 \\
+% C. AI 에이전트 아키텍처 & 전형준 & LLM 에이전트 설계, 도구사용 오케스트레이션, closed-loop 자동화 & \texttt{src/agents/\{blue\_commander,arena,llm\_backend,live\_loop\}.py} & 석사과정생 \\
+% D. 평가·정직성 검증(QA) & 백가현 & 객관 지표 설계, oracle 채점, 재현성/정직성 감사, 문서화 & \texttt{src/agents/oracle\_scorer.py}, \texttt{scripts/rigor/}, 논문 전체 문서·검증 & 석사과정생 \\
+% \bottomrule
+% \end{tabular}
+% \end{adjustbox}
+% \end{table}
+
+\begin{table}[t!]
+\centering
+\caption{팀 구성 및 역할 분배}
+\label{tab:team_role}
+\renewcommand{\arraystretch}{1.35}
+\begin{adjustbox}{width=\textwidth}
+\begin{tabular}{
+p{3.3cm}
+@{\hspace{0.6cm}}
+p{2.2cm}
+@{\hspace{0.6cm}}
+p{6.6cm}
+@{\hspace{0.6cm}}
+p{1.8cm}
+}
+\toprule
+\textbf{역할} & \textbf{담당} & \textbf{핵심 전문성} & \textbf{직위} \\
+\midrule
+RED --- 공격 설계·위협 독트린 &
+김민석, 권유정 &
+방산 무인체계 운용 이해, MAVLink 프로토콜, 위협 모델링, 킬체인 구성 &
+박사과정 \\
+\midrule
+BLUE --- 탐지·예방 엔지니어링 &
+전형준 &
+EKF/센서 융합, 이상탐지, 제어 불변식, 실시간 방어 제어 설계 &
+석사과정 \\
+\midrule
+AI 에이전트 아키텍처 &
+전형준 &
+LLM 에이전트 설계, 도구 사용 오케스트레이션 &
+석사과정 \\
+\midrule
+평가·정직성 검증(QA) &
+백가현 &
+객관 지표 설계, 재현성·정직성 감사, 문서화 &
+석사과정 \\
+\bottomrule
+\end{tabular}
+\end{adjustbox}
+\end{table}
+
+% 본 팀의 방어 아키텍처 및 보안 게이트웨이 설계·구현을 총괄한 전형준은 한국정보보호학회 주관, MCP/LLM 등 AI 기술을 활용하여 소프트웨어의 취약점 분석·보조에 활용할 수 있는 도구·시스템·소프트웨어를 선발하는 공모전에서 우수상을 수상한 바 있으며, 이러한 실무 경험이 본 연구의 BLUE 지휘관 (7장) 및 보안 게이트웨이 설계에 직접 반영되었다.
+
+% 역할 간 인터페이스도 성문화되어 있다. RED (A)는 BLUE (C)의 탐지기 상태에 blind하며 회피를 최적화하지 않는다(7.5절의 정보 격리 설계). 평가(D)는 A·B·C의 헤드라인 수치를 오라클·오프라인 하니스로 재산출해 과대주장을 차단하는 상호 견제 기능을 겸한다 --- 실제로 5장의 주입값-창발값 분리(A), 6장의 detect-only 정직 표기(B), 8장의 "도구 가치" 하향 재정식화(C)는 모두 이 QA 규율의 산출물이다.
+
+\subsection{팀원 관련 AI·보안 연구 실적}
+본 팀은 AI 및 시스템 보안 분야의 연구를 지속적으로 수행해 왔으며, 그 실적은 다음과 같다.
+
+\begin{sloppypar}
+
+% \noindent\textbf{김민석.} AI 에이전트 보안, RAG 보안, 바이너리 보안을 중심으로 연구한다. 해당 전문성은 본 연구의 RED 위협 모델링, MAVLink 공격 시나리오 설계, 도메인별 RED 에이전트 구성에 연결된다.
+\begin{itemize}[leftmargin=*]
+    \item Jiyong Uhm, Minseok Kim, Michalis Polychronakis, and Hyungjoon Koo, \emph{Fool Me If You Can: On the Robustness of Binary Code Similarity Detection Models against Semantics-preserving Transformations}, ACM International Conference on the Foundations of Software Engineering (FSE '26, to appear).
+    \item Minseok Kim, Hankook Lee, and Hyungjoon Koo, \emph{Rescuing the Unpoisoned: Efficient Defense against Knowledge Corruption Attacks on RAG Systems}, 41st Annual Computer Security Applications Conference (ACSAC '25).
+    \item Minseok Kim and Hyungjoon Koo, \emph{Security of Autonomous AI Agents: Trust Boundary-Based Attack Surface Analysis and Trends}, Review of KIISC (2026).
+    \item Yiyue Zhang, Minseok Kim, and Hyungjoon Koo, \emph{Security Analysis of Agentic Communication Protocols: Model Context Protocol (MCP) and Agent-to-Agent (A2A)}, 한국정보보호학회 하계학술대회 (CISC-S '25).
+    \item Minseok Kim and Hyungjoon Koo, \emph{Trends in Attacks and Defenses against Retrieval-Augmented Generation (RAG) Systems}, 한국정보보호학회 동계학술대회 (CISC-W '24).
+    \item Minseok Kim and Hyungjoon Koo, \emph{LLM-Based Drug Term Detection in Korean Messenger Conversations}, Journal of The Korea Institute of Information Security \& Cryptology (2025).
+    \item Giuk Kwon, Minseok Kim, and Hyungjoon Koo, \emph{Analysis of Watermarking for AI-generated Text}, 한국정보보호학회 동계학술대회 (CISC-W '25).
+% \end{itemize}
+
+% \noindent\textbf{권유정.} 머신 언러닝 (Machine unlearning)·멤버십 추론 공격·바이너리 보안을 중심으로 연구해 왔다.
+% \begin{itemize}[leftmargin=*]
+    \item Intae Jeon, Yujeong Kwon, and Hyungjoon Koo, \emph{UnPII: Unlearning Personally Identifiable Information with Quantifiable Exposure Risk}, Software Engineering in Practice track, International Conference on Software Engineering (ICSE-SEIP '26).
+    \item Yujeong Kwon, Simon S. Woo, and Hyungjoon Koo, \emph{An Empirical Study of Black-box based Membership Inference Attacks on a Real-World Dataset}, International Symposium on Foundations and Practice of Security (FPS '24).
+    \item Mijin Jeon, Yujeong Kwon, and Hyungjoon Koo, \emph{Trends in LLM-assisted Attacks}, 한국정보보호학회 하계학술대회 (CISC-S '25).
+    \item Yujeong Kwon, Jiyong Uhm, and Hyungjoon Koo, \emph{RoBERTa-based Obfuscated Binary Code Similarity Detection}, 한국정보보호학회 하계학술대회 (CISC-S '24) --- Best Paper Award.
+    \item Yujeong Kwon and Hyungjoon Koo, \emph{Trends in Machine Unlearning via Continual Learning to Mitigate Privacy Risks}, 한국정보보호학회 동계학술대회 (CISC-W '23).
+% \end{itemize}
+% 멤버십 추론 공격 및 개인정보 노출 위험 정량화 연구 경험은 본 연구의 공격자 위협 모델 설계(4장)와 정직성 원칙(주입값·창발값 분리, 2장) 수립에 반영되었다.
+
+% \noindent\textbf{전형준.} Rust 안전성 및 AI 기술을 활용한 소프트웨어 취약점 분석 도구 연구를 수행해 왔다.
+% \begin{itemize}[leftmargin=*]
+    \item Hyungjun Jeon, Jiyong Uhm, and Hyungjoon Koo, \emph{Trends in Securing Unsafe Regions for Rust}, 한국정보보호학회 하계학술대회 (CISC-S '25).
+\end{itemize}
+\end{sloppypar}
+

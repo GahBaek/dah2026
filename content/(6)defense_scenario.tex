@@ -1,0 +1,304 @@
+\section{방어 아키텍처}
+
+본 절의 모든 수치는 \texttt{docs/evidence/} 하위 실측 메트릭 JSON에서만 인용한다. 예방이 실측된 항목에만 정량 효과를 기재하고, 자율 대응이 배선되지 않은 항목은 탐지 전용 또는 설계 수준으로 정직하게 표기한다.
+
+\subsection{설계 철학 - 탐지·예방·복구의 3층과 정직성 계약}
+
+본 방어 체계는 단일 만능 탐지기를 지향하지 않는다. 각 방어기는 하나의 공격 클래스가 남기는 직접적 물리·프로토콜 서명을 탐지 통계량으로 삼고, 그 클래스를 무력화하도록 대응을 선택한 긴밀 결합 (tight coupling) 구조를 갖는다. 아키텍처는 세 계층으로 구성된다: \textbf{탐지 계층} (D2--D8 및 보조 탐지기, 수동 MAVLink 탭으로 지상진실 라벨 없이 이상을 래치), \textbf{예방/차단 계층} (탐지 래치를 실제 SITL 액추에이션에 연결 - 차단 수단은 모두 ArduPilot이 이미 탑재한 네이티브 기능의 구성), \textbf{복구 계층} (사전 공격 상태 복원 또는 네이티브 페일세이프 보전).
+이 아키텍처의 신뢰성은 과대주장 금지에서 나온다. 결합 행렬의 모든 차단/복구 셀에는 하나의 증거 티어 태그가 부착된다.
+
+\begin{table}[t!]
+\centering
+\caption{방어 성능 검증의 객관성 확보를 위한 5단계 증거 티어 태깅 체계}
+\label{tab:tier_tags}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabularx}{\textwidth}{@{} l >{\raggedright\arraybackslash}X @{}}
+\toprule
+\textbf{평가 티어} & \textbf{정의 및 실증 기준} \\
+\midrule
+\textbf{[LIVE]} & 탐지 및 방어 로직을 실제 SITL 제어 환경에 직접 연동하여 방어 성능을 재측정함. 실측을 통해 공격 성공률이 1.0에서 0.0으로 완전 차단됨을 반복 검증한 최고 수준의 증거. \\
+\textbf{[SIGN]} & 통신 프레임 계층에서의 원리적 예방 및 차단 증명. 서명이 누락되거나 잘못된 암호키를 지닌 악성 프레임은 전량 폐기하고, 정당하게 서명된 제어 명령만 통과시킴 (정상 명령 오거부율 0\%). \\
+\textbf{[NATIVE-FS]} & 기체 고유의 자율 페일세이프 (ArduPilot 네이티브 RTL, LAND, EKF Action 등)를 통해 시스템 복구가 수행되며, 제안된 방어 모듈의 탐지 경보가 네이티브 페일세이프 발동 시점보다 선행함을 증명함. \\
+\textbf{[DETECT-ONLY]} & 방어 체계의 구조적 한계에 대한 정직한 명시. 위협 탐지 및 경보는 오탐 없이 깨끗하게 작동하나, 기체의 능동적인 자율 회피 및 제어 완화 기능까지는 연동되지 않은 상태. \\
+\textbf{[PROPOSED]} & 기술적인 구현 및 차단 경로는 명확히 제시되나, 아직 실제 SITL 제어 연동을 통한 실증 데이터가 확보되지 않은 설계 수준의 봉쇄 방안. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+% \begin{table}[t!]
+% \centering
+% \caption{5단계 증거 티어 태깅 체계}
+% \label{tab:tier_tags}
+% \renewcommand{\arraystretch}{1.25}
+% \small
+% \begin{tabularx}{\textwidth}{l X}
+% \toprule
+% \textbf{티어} & \textbf{의미} \\
+% \midrule
+% \textbf{[LIVE]} & 예방을 라이브 SITL 액추에이션에 배선하고 재측정 --- ASR 1.0 $\to$ 0.0을 반복 실측 \\
+% \textbf{[SIGN]} & 프레임 계층 예방 증명 --- 미서명/오키 프레임은 드롭, 정당 서명 제어는 통과(오거부 0) \\
+% \textbf{[NATIVE-FS]} & 복구가 ArduPilot 자체 페일세이프(RTL/LAND/EKF action)이며 탐지 경보가 이를 선행 \\
+% \textbf{[DETECT-ONLY]} & 정직한 음성(negative) --- 탐지는 깨끗이 발화하나 자율 완화 미배선 \\
+% \textbf{[PROPOSED]} & 구현 경로는 명확하나 아직 액추에이션 아티팩트가 없는 설계 수준 봉쇄 \\
+% \bottomrule
+% \end{tabularx}
+% \end{table}
+\subsection{탐지 계층 D2--D8: 메커니즘 설계 및 실측 성능 (TTD/FP)}
+
+본 절에서는 각 방어 모듈의 탐지 원리, 수동 탭 (passive tap) 획득 위치, 그리고 실제 SITL 구동을 통해 산출된 탐지 소요 시간 (Time-To-Detect)과 오탐률 (false positive)을 상술한다.
+
+\paragraph{\textbf{D2 --- 제어 명령 스트림 침입 탐지 (IDS)} (\texttt{command\_ids.py}):} ~\\
+\textbf{탐지 원리:} MAVLink v1 및 무인증 v2 프로토콜의 취약점을 노린 악성 제어 명령 (\texttt{COMMAND\_LONG}, \texttt{SET\_MODE} 등) 주입을 방어한다. 명령 헤더와 브로드캐스트 상태 프레임(\texttt{HEARTBEAT})을 실시간으로 수집하여, (R1) 비행 중 비정상적인 시동 차단 (disarm), (R2) 예기치 않은 비행 모드 전환, (R3) 비정상 시스템 ID (SysID) 및 명령 전송 빈도 등을 감시하고 식별한다.\\
+\textbf{실측 결과:} UAV 환경에서 R2 TTD는 \textbf{0.0 s}, R1은 0.398 s를 기록했으며 오탐은 없다. UGV 환경에서도 R2 1.219 s, R1 (이동 중 Disarm) 0.42 s, 오탐 0건을 기록하여 방어 성능을 검증한다.
+% \paragraph{\textbf{D2 --- 제어 명령 스트림 침입 탐지 (IDS)} (\texttt{command\_ids.py}):}
+% MAVLink v1 및 서명이 누락된 v2 프로토콜의 무인증 취약점을 방어한다. 정상 형식의 위조 \texttt{COMMAND\_LONG}이나 \texttt{SET\_MODE}가 주입될 경우, 비행 스택은 이를 무비판적으로 수용하여 실행한다. D2는 명령 헤더와 브로드캐스트 상태 프레임 (\texttt{HEARTBEAT}, 비행 모드 및 Armed 상태 포함)을 수집하여 다음을 감시한다: (R1) 비행 중 비정상적인 시동 차단 (Disarm), (R2) 예기치 않은 비행 모드 전환, (R3) 비정상 시스템 ID (SysID) 및 비정상 명령 전송 빈도. 
+
+% \textit{실측 결과:} UAV 환경에서 R2 TTD는 \textbf{0.0 s}, R1은 0.398 s를 기록했으며 오탐은 없었다 (0 FP / 정당 명령 8건). UGV(Rover) 환경에서는 R2 1.219 s, R1(이동 중 Disarm) 0.42 s, 오탐 0건(0 FP / 정당 명령 6건)을 기록했다.
+
+\paragraph{\textbf{D3 --- GNSS 기만 및 항법 이탈 탐지}} (\texttt{gps\_innovation.py}): ~\\
+\textbf{탐지 원리:} 위치 스푸핑이 GNSS 신호는 속일 수 있어도 기체 내부의 관성 센서 (IMU) 물리량은 조작할 수 없다는 점을 역이용한다. 내부 추정기 (EK3)의 정규화 불일치 지표(\texttt{pos\_horiz\_variance})를 감시하다가, 기만 신호가 기체를 관성 예측 궤적에서 강제로 밀어낼 때 발생하는 지표의 급상승을 즉각 포착한다.\\
+\textbf{실측 결과:} UAV 환경에서 TTD \textbf{0.81 s} (임계치 0.03 대비 관측 피크 0.441), 정상 비행 124 프레임 기준 오탐률 0을 달성한다. UGV 환경에서도 TTD 1.01 s 내에 기만을 정확히 탐지한다.
+% \textbf{D3 --- GNSS 기만 및 항법 이탈 탐지} (\texttt{gps\_innovation.py}): 
+% 위치 스푸핑 공격이 GNSS 신호는 왜곡할 수 있으나 기체 내부의 관성 센서(IMU) 물리량은 직접 통제할 수 없다는 점을 악용한다. 내부 EK3 추정기의 정규화 불일치 지표(Innovation Test Ratio)는 \texttt{EKF\_STATUS\_REPORT.pos\_horiz\_variance}를 통해 지속 노출된다. 기만 신호가 기체를 관성 예측 궤적에서 강제로 이탈시킬 때 이 지표의 급상승을 포착한다. 
+% \textit{실측 결과:} UAV TTD \textbf{0.81 s} (관측 피크 0.441 vs 임계치 0.03), 0 FP (기준선 정상 비행 124 프레임). UGV TTD는 1.01 s를 기록했다.
+
+\paragraph{\textbf{D4 --- 데이터링크 품질 상태 전이 추적기}} (\texttt{link\_monitor.py}): ~\\
+\textbf{탐지 원리:} 명령 패킷 왕복 시간, 하트비트 간격, 프로브 손실률, 통신 링크 유입 프레임 레이트 (ingress rate) 등의 품질 통계를 종합한다. 이를 통해 현재 통신 상태를 \texttt{OK $\to$ DEGRADED $\to$ LINK\_LOSS} 단계로 엄격하게 추적하고 격상시켜 통신 방해 공격을 포착한다.\\
+\textbf{실측 결과:} \texttt{OK $\to$ DEGRADED} 상태 전이는 \textbf{1.967 s}, \texttt{DEGRADED $\to$ LINK\_LOSS} 전이는 \textbf{2.967 s} 만에 오탐 없이 식별한다. 특히 대역 포화 플러딩 공격 시, 유입 레이트가 843배 폭증하는 징후를 단 \textbf{0.5 s} 만에 포착하는 높은 민감도를 보인다.
+% \textbf{D4 --- 데이터링크 품질 상태 전이 추적기} (\texttt{link\_monitor.py}): 
+% 명령 패킷의 왕복 시간 (RTT), 하트비트 간격, 프로브 손실률, 통신 링크 유입 프레임 레이트 (Ingress Rate)를 종합하여 링크 상태를 \texttt{OK $\to$ DEGRADED $\to$ LINK\_LOSS} 단계로 상승(Escalate)시킨다. 
+% \textit{실측 결과:} \texttt{OK $\to$ DEGRADED} TTD \textbf{1.967 s}, \texttt{DEGRADED $\to$ LINK\_LOSS} \textbf{2.967 s}를 기록했으며 두 상태 전이 모두 오탐(0 FP)은 없었다. 특히 대역 포화 플러딩 공격 발생 시, 유입 레이트가 초당 200 프레임을 초과하는 징후(4 $\to$ 3373 f/s, 843배 폭증)를 \textbf{0.5 s} 만에 포착하였다.
+
+\paragraph{\textbf{D5 --- 제어 및 물리 상태 불변식 감시}} (\texttt{control\_invariant.py}): ~\\
+\textbf{탐지 원리:} 기체가 위치 유지 (LOITER) 또는 직진 비행 중일 때 반드시 지켜져야 할 (a) 제어 불변식 (RC 채널 중립 유지)과 (b) 물리 상태 불변식 (설정 궤적 이탈 없음)을 상호 감시한다. 공격자가 조종 신호를 가로채는 RC 오버라이드 공격 시 이 두 불변식이 모두 위반되므로, 논리합 융합을 통해 오탐을 억제한다.\\
+\textbf{실측 결과:} 명령 불변식 위반을 \textbf{0.204 s} 만에 오탐 없이 탐지한다. 서명 우회 공격이 들어오더라도 상태 불변식 폴백 방어가 즉각 작동하여 UAV는 3.98 s, UGV는 0.31 s 이내에 위협을 포착하는 강건성을 입증한다.
+% \textbf{D5 --- 제어 및 물리 상태 불변식 감시} (\texttt{control\_invariant.py}): 
+% 자율 위치 유지 또는 지령 경로 직진 시에는 (a) 제어 명령 불변식 (RC 채널이 1500us 내외의 중립 유지)과 (b) 물리 상태 불변식 (기체가 설정된 위치/궤적에서 이탈하지 않음)이 동시에 성립해야 한다. 악의적인 RC 채널 오버라이드 공격은 이 두 불변식을 모두 위반하므로, 논리합(OR) 융합을 통해 오탐을 억제하면서 공격을 식별한다. 
+% \textit{실측 결과:} 명령 불변식 위반 TTD \textbf{0.204 s} (0 FP). RC 서명을 우회하는 정교한 공격 시에도, 상태 불변식 폴백 (Fallback) 방어가 활성화되어 UAV +3.98 s, UGV +0.31 s 이내에 위협을 포착하며 강건성을 입증하였다.
+
+\paragraph{\textbf{D6 --- 시그니처-프리 원격측정 이상 탐지}} (\texttt{anomaly\_detector.py}): ~\\
+\textbf{탐지 원리:} 알려진 공격 패턴 (시그니처)에 의존하지 않는 신종 위협 방어 모듈이다. Robust Mahalanobis 거리 측정과 Autoencoder를 결합한 이중 코어 모델을 통해, 기체가 정상 비행할 때의 텔레메트리 프로파일을 미리 학습하고 이를 벗어나는 모든 이상 징후를 플래깅 (flagging)한다.\\
+\textbf{실측 결과:} RC 오버라이드 공격을 \textbf{0.102 s}, 통신 링크 공격을 1.4$\sim$1.7 s 내에 포착한다. 
+% \textbf{D6 --- 시그니처-프리 원격측정 이상 탐지} (\texttt{anomaly\_detector.py}): 
+% D4 및 D5 모듈은 알려진 시그니처를 기반으로 하므로 신종 공격에 취약할 수 있다. D6 모듈은 Robust Mahalanobis 거리 측정과 Autoencoder를 결합한 이중 코어 구조를 통해, 사전에 학습된 정상 텔레메트리 프로파일에서 이탈하는 모든 이상 현상을 플래깅 (Flagging)한다. 
+% \textit{실측 결과:} RC 오버라이드 공격 시 \textbf{0.102 s}, 링크 공격 시 $\sim$1.4--1.7 s 내에 반응하였다. 단, 본 모듈은 모든 제로데이 공격을 방어하는 '만능 오라클'이 아니라, '학습된 정상 범주를 벗어난 이탈'만을 포착하는 구조적 한계를 정직하게 명시한다.
+
+\paragraph{\textbf{D7 --- GNSS 및 IMU 센서 교차 검증}} (\texttt{gnss\_health.py}, \texttt{sensor\_xcheck.py}): ~\\
+\textbf{탐지 원리:} 단일 센서의 오염을 막기 위해 다중 센서를 대조한다. GNSS 재밍이나 거부 상황은 수신기 상태 (\texttt{fix\_type} 등) 붕괴 패턴으로 포착하며, 관성 센서 스푸핑은 기체에 탑재된 여러 개의 예비 관성 센서 출력을 상호 대조하여 탐지한다.\\
+\textbf{실측 결과:} GNSS 재밍 탐지 (TTD \textbf{0.61 s})의 경우, 기체의 네이티브 페일세이프 (AUTO $\to$ LAND, 8.19 s)보다 무려 \textbf{7.58 s 앞서 선행 경보}를 발령하는 뛰어난 성능을 보인다. IMU 교차 검증 역시 TTD 1.57 s, 오탐 0 FP를 기록하며 안정적으로 동작한다.
+% \textbf{D7 --- GNSS 및 IMU 센서 교차 검증} (\texttt{gnss\_health.py}, \texttt{sensor\_xcheck.py}): 
+% (1) GNSS 건전성: 수신기 상태(\texttt{fix\_type}, \texttt{satellites\_visible})의 붕괴 패턴을 분석하여 재밍 및 신호 거부 상황을 탐지한다. TTD \textbf{0.61 s}를 기록하여, ArduPilot의 네이티브 페일세이프 (AUTO $\to$ LAND, 8.19 s)보다 무려 \textbf{7.58 s 선행하여 경보}를 발령한다. 
+% (2) IMU 교차 검증: 공존하는 다중 관성 센서의 출력을 대조하여 TTD 1.57 s, 오탐 0 FP를 기록했다.
+
+\paragraph{\textbf{D8 --- 기압계 스푸핑 물리적 교차 검증}} (\texttt{sensor\_xcheck.py:BaroGpsCrossCheck}):  ~\\
+\textbf{탐지 원리:} 고도를 조작하는 기압계 스푸핑을 방어하기 위해, 내장 기압계가 산출한 고도 값과 GPS가 제공하는 고도 값을 상호 교차 검증하여 물리적인 수직 고도 편차 이상을 식별한다.\\
+\textbf{실측 결과:} TTD \textbf{2.7 s} 및 오탐 0을 기록한다. 
+% 다만, 기압 센서가 EKF 필터의 1차 수직 데이터 소스로 작용하기 때문에, 공격 주입량이 즉각적인 물리적 강하로 이어지며 이를 완벽히 대체할 다른 건강한 수직 소스가 마땅치 않다는 구조적 취약점을 확인한다.
+% \textbf{D8 --- 기압계 스푸핑 물리적 교차 검증} (\texttt{sensor\_xcheck.py:BaroGpsCrossCheck}): 
+% 내장 기압계가 산출하는 고도와 GPS 기반 고도를 상호 교차 검증한다. 
+% \textit{실측 결과:} TTD \textbf{2.7 s}, 0 FP. 기압 센서가 EKF 필터의 1차 수직 데이터 소스로 작용하므로 공격 주입량이 즉각적인 물리적 강하 ($\approx$ 발현)로 이어지며, 융합 필터 특성상 기압계를 대체할 더 건강한 수직 소스가 마땅치 않은 구조적 취약점이 확인되었다.
+
+
+\paragraph{\textbf{보조 탐지 및 예방 모듈}} ~\\
+\vspace{-1.5em}
+\begin{itemize}[leftmargin=*]
+    \item \textbf{D-XCHK} (\texttt{sensor\_xcheck.py}): 나침반과 자이로/GPS 융합 방위각을 교차 검증하여 지자기 스푸핑을 탐지한다. 실측 결과 TTD 0.61 s, 0 FP (정상 124 프레임 기준)를 기록한다.
+    \item \textbf{D-PARAM} (\texttt{param\_monitor.py}): 시스템 보호와 직결된 주요 안전 파라미터에 대한 무단 덮어쓰기 (Unauthorized write)를 실시간 감시한다. 실측 결과 TTD 1.34 s, 0 FP를 달성한다.
+    \item \textbf{D-MISSION} (\texttt{mission\_integrity.py}): 임무 계획의 해시 무결성 및 지오펜스 설정 변조를 감시한다. 실측 결과 TTD 0.175 s를 기록하며, 동일한 정상 임무를 3회 재업로드하는 대조군 테스트에서도 오탐은 발생하지 않는다.  
+    \item \textbf{D-REPLAY} (\texttt{replay\_detect.py}): 캡처된 패킷을 악의적으로 재주입하는 replay 공격을 탐지한다. 실측 결과 TTD $\approx$0.0001 s의 즉각적인 반응 속도를 보이며, 1038개의 정상 통신 프레임 검증 환경에서 오탐은 없다.    
+    \item \textbf{D-ADSB} (\texttt{adsb\_xcheck.py}): 충돌 회피 기능을 악용한 가상 유령 항공기 주입을 방어한다. 기본 충돌 위험 룰셋 (R1)은 TTD $\approx$0 s (0 FP)로 즉각 반응한다. 특히, 기존 방어망(R1$\sim$R3)을 교묘히 우회하는 `저속 직진 접근 (ramp-in)' 기만을 원천 차단하기 위해 \textbf{지속-순접근 룰 (R4, Sustained-inbound)}을 새롭게 고안하여 적용한다. 실측 결과, 105 s 지점에서 위협을 사전 포착하여 단순 통과 항적에 대한 오탐 없이 방어에 성공한다. 다만, 해당 룰에 대해 레드팀 관점에서 교차 검증을 수행한 결과, 최근접점 (CPA) 게이팅 (gating) 조건이 부재하여 정당하게 수렴하는 정상 교통에 대해서는 오탐을 유발할 수 있는 구조적 한계가 발견된다.  
+    \item \textbf{D-SIGN} (\texttt{signing\_gateway.py}): 사후 탐지 (post-detection)에 의존하지 않고, 비인가 제어 명령의 시스템 진입 자체를 네트워크 단에서 원천 차단하는 암호학적 예방 게이트웨이 (prevention gateway) 역할을 수행한다.
+\end{itemize}
+% \paragraph{\textbf{보조 탐지 및 예방 모듈:}}
+% \begin{itemize}
+%     \item \textbf{D-XCHK} (나침반 vs 자이로/GPS 방위각 교차 검증): TTD 0.61 s, 0 FP (124 기준 프레임).
+%     \item \textbf{D-PARAM} (\texttt{param\_monitor.py}, 안전 파라미터 무단 쓰기 감시): TTD 1.34 s, 0 FP.
+%     \item \textbf{D-MISSION} (\texttt{mission\_integrity.py}, 미션 해시 및 지오펜스 변조 감시): TTD 0.175 s, 0 FP (동일 계획 3회 정상 재업로드 시 오탐 없음).
+%     \item \textbf{D-REPLAY} (\texttt{replay\_detect.py}, 패킷 재전송 탐지): TTD $\approx$0.0001 s, 0 FP (정상 통신 1038 프레임).
+%     \item \textbf{D-ADSB} (\texttt{adsb\_xcheck.py}, 유령 항공기 탐지): 충돌 위험 R1 룰셋 TTD $\approx$0 s, 0 FP. 특히 기존 방어(R1$\sim$R3)를 우회하는 '저속 직진 접근 (Ramp-in)' 유령기를 차단하기 위해 \textbf{지속-접근 룰 (R4, sustained-inbound)}을 신규 도입 및 실측하였다. 실측 결과 105 s (약 1200m 밖)에 위협을 사전 포착하였으나(단순 통과 항적 오탐 0건), R4 룰 자체를 레드팀 (Red-team) 방식으로 자체 검증한 결과, 최근접점(CPA) 게이팅 부재로 인해 정당한 수렴 교통 (예: 정상 접근 항공기)에 대해 오탐 (FP)이 발생할 수 있는 구조적 한계가 존재한다 (상세 논의 제10.3절 참조).
+%     \item \textbf{D-SIGN} (\texttt{signing\_gateway.py}): 사후 탐지가 아닌, 비인가 명령의 진입 자체를 차단하는 암호학적 예방 게이트웨이 (상세 논의 제3.4절 참조).
+% \end{itemize}
+
+% \subsection{탐지 계층 D2--D8 - 원리·탭 위치·실측 TTD/FP}
+
+% \textbf{D2 --- 명령 스트림 IDS}(\texttt{command\_ids.py}). MAVLink v1 및 서명 없는 v2는 인증이 없어, 정상 형식의 \texttt{COMMAND\_LONG}/\texttt{SET\_MODE}를 주입하면 비행 스택이 그대로 실행한다. D2는 명령 헤더와 브로드캐스트 \texttt{HEARTBEAT}(모드+armed)를 소비해 (R1) 비행 중 disarm, (R2) 예기치 않은 모드 전환, (R3) sysid/명령-레이트 출처 규칙으로 latch한다. 실측(copter): R2 TTD \textbf{0.0 s}, R1 0.398 s, FP 0/정당명령 8건. Rover: R2 1.219 s, R1 (이동중disarm) 0.42 s, FP 0/6.
+
+% \textbf{D3 --- GPS 스푸프/항법 이탈}(\texttt{gps\_innovation.py}). GPS 스푸퍼는 GNSS 위치 측정만 통제할 뿐 관성센서는 통제하지 못한다. EK3 추정기의 정규화 불일치(innovation test ratio)가 \texttt{EKF\_STATUS\_REPORT.pos\_horiz\_variance}로 이미 노출되므로, 스푸프가 위치를 관성 예측에서 밀어내면 이 비율이 상승한다. 실측: TTD \textbf{0.81 s}(피크 0.441 vs 임계 0.03), FP 0/기준선 124. Rover 1.01 s.
+
+% \textbf{D4 --- 데이터링크 품질 상태기계}(\texttt{link\_monitor.py}). 명령 RTT, 하트비트 간격, 프로브 손실, 링크측 유입 프레임레이트로 \texttt{OK $\to$ DEGRADED $\to$ LINK\_LOSS} 상태를 escalate한다. 실측: OK$\to$DEGRADED TTD \textbf{1.967 s}, DEGRADED$\to$LINK\_LOSS \textbf{2.967 s}, 모두 FP 0. 플러드 시 유입레이트$>$200/s를 TTD \textbf{0.5 s}(4$\to$3373 f/s, 843배 급증)에 포착.
+
+% \textbf{D5 --- 제어 불변식}(\texttt{control\_invariant.py}). 자율 위치유지(LOITER)나 지령 직진 중에는 (a) 명령 불변식(RC 채널이 중립 $\sim$1500us)과 (b) 상태 불변식(물리 상태가 설정점에서 이탈하지 않음)이 성립해야 한다. 진짜 RC 오버라이드는 둘 다 위반하므로 OR 융합으로 오탐을 억제한다. 실측: 명령 불변식 TTD \textbf{0.204 s}, FP 0; 강건 상태-불변식 폴백 +3.98 s(UAV)/+0.31 s(UGV)로 RC-서명 우회에도 생존.
+
+% \textbf{D6 --- 서명 없는 이상 센서}(\texttt{anomaly\_detector.py}). D4/D5는 시그니처 탐지기라 카탈로그에 없는 것에는 눈이 먼다. D6은 정상 텔레메트리 프로파일 하나만 학습하고 모든 관측 이탈을 flag한다(RobustMahalanobis + Autoencoder 이중 코어). 실측: RC 오버라이드 \textbf{0.102 s}, 링크 공격 $\sim$1.4--1.7 s. "제로데이 오라클"이 아니라 학습된 정상 프로파일로부터의 이탈만 잡는다는 한계를 정직하게 명시한다.
+
+% \textbf{D7 --- GNSS 건전성/IMU 교차검증.} GNSS 건전성(\texttt{gnss\_health.py}): 수신기 건전성(\texttt{fix\_type}, \texttt{satellites\_visible}) 붕괴로 재밍/거부를 탐지, TTD \textbf{0.61 s}, 네이티브 EKF/GPS 페일세이프(AUTO$\to$LAND 8.19 s)보다 7.58 s 선행. IMU 교차검증(\texttt{sensor\_xcheck.py:ImuEkfCrossCheck}): TTD 1.57 s, FP 0.
+
+% \textbf{D8 --- 기압계 스푸프 교차검증}(\texttt{sensor\_xcheck.py:BaroGpsCrossCheck}). 기압고도 대 GPS고도 교차검증, TTD \textbf{2.7 s}, FP 0. 기압계는 EKF의 1차 수직 소스라 주입$\approx$발현이며, 게이트가 선호할 더 건강한 수직 소스가 없다.
+
+% \textbf{보조 탐지·예방기.} D-XCHK(나침반 대 자이로/GPS-COG): TTD 0.61 s, FP 0/124. D-PARAM(\texttt{param\_monitor.py}, 안전 파라미터 쓰기): TTD 1.34 s, FP 0. D-MISSION(\texttt{mission\_integrity.py}, 미션 해시+지오펜스): TTD 0.175 s, FP 0/동일계획 3회 재업로드. D-REPLAY(\texttt{replay\_detect.py}): TTD $\approx$0.0001 s, FP 0/정상 1038 프레임. D-ADSB(\texttt{adsb\_xcheck.py}): R1 TTD$\sim$0, FP 0(R2/R3은 오프라인 검증만); 저속 램프-인 회피 gap을 닫는 R4(sustained-inbound)를 추가 실측하였다(TTD 105 s, 통과 항적 FP 0). 다만 자체 red-team 결과 CPA를 보지 않아 정당 수렴 교통에는 오탐할 수 있음이 드러났다(10.3절). D-SIGN(\texttt{signing\_gateway.py}): 탐지가 아닌 예방 게이트웨이(3.4절).
+
+\subsection{예방 계층 태깅과 결합 행렬}
+
+결합의 핵심은 각 방어의 탐지 통계량이 곧 그 공격의 정의라는 점이다. RC/조향 오버라이드에서 ``자율유지 기체는 RC 오버라이드가 중립이어야 한다"는 불변식이 곧 공격의 정의이며, 대응 BRAKE/HOLD는 탈취 채널을 무력화하는 유일한 모드다. 명령/재전송/미션/파라미터는 모두 미인증 프레임 공격이므로, 출처를 프로토콜 계층에서 해소하는 단일 인증 (MAVLink2 서명)이 넷을 모두 닫는다.
+
+\begin{table}[t!]
+\centering
+\caption{공격 유형별 탐지-차단-복구 결합 행렬 (Coupling Matrix) 종합 요약}
+\label{tab:coupling_matrix}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabularx}{\textwidth}{@{} >{\raggedright\arraybackslash}p{3.8cm} >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X @{}}
+\toprule
+\textbf{공격 시나리오} & \textbf{탐지 모듈 및 TTD} & \textbf{예방/차단 수단 (Tier)} & \textbf{복구 메커니즘 (Tier)} \\
+\midrule
+RC 오버라이드 (UAV) & D5 0.204 s / D6 0.102 s & 모드 강제 전환(BRAKE) \textbf{[LIVE]} (ASR 1$\to$0) & 원상태(GUIDED) 재위치 \textbf{[LIVE]} (0.02 m 오차) \\
+위조 명령 주입 (RTL) & D2 (R2) 0.0 s & 서명 기반 예방 게이트 \textbf{[SIGN]} (ASR 1$\to$0) & 최종 인증 명령 재수행 \textbf{[SIGN]} \\
+GPS 기만 (UAV 체공/항법) & D3 0.81 s & EKF 소스 강제 전환 \textbf{[LIVE]} (ASR 1$\to$0) & 비오염 소스(관성) 유지 \textbf{[NATIVE-FS]} \\
+지자기 센서 기만 & D-XCHK 0.61 s & \textbf{[DETECT-ONLY]} & 운용자 수동 재시딩(Reseeding) 요구 \\
+IMU 다중 기만 & D7-IMU 1.57 s & \textbf{[DETECT-ONLY]} & 운용자 수동 개입 및 트리아지(Triage) \\
+기압계 센서 기만 & D8 2.7 s & \textbf{[DETECT-ONLY]} & 운용자 수동 개입 및 트리아지 \\
+GNSS 재밍 및 거부 & D7 0.61 s & \textbf{[DETECT-ONLY]} (페일세이프 7.58 s 선행) & LAND 강제 전환 \textbf{[NATIVE-FS]} (8.19 s) \\
+미션/임무 변조 & D-MISSION 0.175 s & 서명 기반 예방 게이트 \textbf{[SIGN]} & 정상 임무 계획 재업로드 \textbf{[LIVE-restore]} \\
+파라미터 변조 (\texttt{FS\_THR}) & D-PARAM 1.34 s & 서명 기반 예방 게이트 \textbf{[SIGN]} & 페일세이프 변수 재확립 \textbf{[LIVE-restore]} (ASR 1$\to$0) \\
+ADS-B 유령기 기만 & D-ADSB TTD $\approx$0 s (R1) & \textbf{[DETECT-ONLY]} / \textbf{[PROPOSED]} & 위협 개연성 판정 후 기존 임무 유지 \\
+조향 채널 오버라이드 (UGV) & D5 0.204 s & 정지(HOLD) 강제 \textbf{[LIVE]} (ASR 1$\to$0) & \textbf{[PROPOSED]} 설계 수준 대기 \\
+명령 주입 및 차단 (UGV) & D2 (R1) 0.42 s & 서명 기반 예방 게이트 \textbf{[SIGN]} & 기존 안전 모드 재개 \textbf{[SIGN]} \\
+GPS 기만 (UGV 자동 항법) & D3 1.01 s & EKF 소스 강제 전환 \textbf{[LIVE]} & 휠 오도메트리 및 관성 유지 \textbf{[NATIVE-FS]} \\
+데이터링크 열화 (지연/손실) & D4 1.967 s & 해당 없음(N/A) - 물리적 한계 명시 & 사전 페일세이프 대기 \textbf{[NATIVE-FS-ready]} \\
+링크 DoS 블랙아웃 & D4 2.967 s & 해당 없음(N/A) & 통신 상실 RTL 발동 \textbf{[NATIVE-FS-ready]} \\
+대역폭 플러딩 (명령 기아) & D4 0.5 s (843배 폭증) & 인그레스(ingress) 속도 제한 \textbf{[LIVE]} (손실률 80$\to$0\%) & 한계치 초과 시 블랙아웃 복구 경로로 전이 \\
+MAVLink 재전송 (Replay) & D-REPLAY $\approx$0 s & 서명 타임스탬프 검증 \textbf{[SIGN]} & 최신 인증 명령 재수행 \textbf{[SIGN]} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+% \begin{table}[t!]
+% \centering
+% \caption{공격 $\leftrightarrow$ 방어 결합 행렬 (도메인별 요약)}
+% \label{tab:coupling_matrix}
+% \renewcommand{\arraystretch}{1.2}
+% \scriptsize
+% \begin{adjustbox}{width=\textwidth}
+% \begin{tabular}{p{3.4cm} p{2.6cm} p{3.0cm} p{3.0cm}}
+% \toprule
+% \textbf{공격} & \textbf{탐지} & \textbf{차단 (티어)} & \textbf{복구 (티어)} \\
+% \midrule
+% RC 오버라이드 (UAV) & D5 0.204s / D6 0.102s & BRAKE [LIVE] ASR 1$\to$0 & GUIDED 재위치 [LIVE] 0.02m \\
+% 명령 주입 DO\_SET\_MODE$\to$RTL & D2 R2 0.0s & 서명 게이트 [SIGN] ASR 1$\to$0 & 최종 인증 명령 재개 [SIGN] \\
+% GPS 기만 (호버/AUTO) & D3 0.81s & EKF 소스 전환 [LIVE] ASR 1$\to$0 & 비오염 소스 유지 [NATIVE-FS] \\
+% 자력계 기만 & D-XCHK 0.61s & [DETECT-ONLY] & 수동 재시딩 (Reseeding) \\
+% IMU 기만 & D7-IMU 1.57s & [DETECT-ONLY] & 운용자 착륙/트리아지 \\
+% 기압계 기만 & D8 2.7s & [DETECT-ONLY] & 운용자 트리아지 \\
+% GNSS 재밍 & D7 0.61s & [DETECT-ONLY] (7.58s 리드) & LAND [NATIVE-FS] 8.19s \\
+% 임무 변조 & D-MISSION 0.175s & 서명 게이트 [SIGN] & 정상 계획 재업로드 [LIVE-restore] \\
+% 파라미터 변조 (FS\_THR) & D-PARAM 1.34s & 서명 게이트 [SIGN] & 페일세이프 재확립 [LIVE-restore] ASR 1$\to$0 \\
+% ADS-B 유령기 & D-ADSB TTD$\sim$0(R1) & [DETECT-ONLY]/[PROPOSED] & 개연성 판정 후 상태 유지 \\
+% 조향 오버라이드 (UGV) & D5 0.204s & HOLD [LIVE] ASR 1$\to$0 & [PROPOSED] \\
+% 명령 주입 및 이동 중 차단 (UGV) & D2 R1 0.42s & 서명 게이트 [SIGN] & 안전 모드 재개 [SIGN] \\
+% GPS 기만 (UGV AUTO) & D3 1.01s & EKF 소스 전환 [LIVE] & 관성/휠 오도메트리 유지 [NATIVE-FS] \\
+% 링크 열화 & D4 1.967s & N/A (정직) & 사전 페일세이프 대기 [NATIVE-FS-ready] \\
+% 링크 DoS 블랙아웃 & D4 2.967s & N/A (정직) & 링크 상실 RTL [NATIVE-FS-ready] \\
+% 대역폭 플러딩 & D4 0.5s (843배) & Rate-limit [LIVE] 기아 80$\to$0\% & 임계치 초과 시 블랙아웃 경로 \\
+% MAVLink 재전송 & D-REPLAY $\approx$0s & 서명 타임스탬프 [SIGN] & 최신 인증 명령 재개 [SIGN] \\
+% \bottomrule
+% \end{tabular}
+% \end{adjustbox}
+% \end{table}
+
+본 방어 아키텍처 설계를 관통하는 핵심 통찰은 제어 명령의 \textbf{`출처 모호성 (Provenance-Ambiguity)'}에 있다. 암호학적 인증이 결여된 단일 채널 오버라이드나 위조 프레임은 기체의 최종 제어단에 도달했을 때 정당한 조종 명령과 논리적·물리적으로 구별하는 것이 근본적으로 불가능하다.
+
+따라서 악의적인 명령 주입, 제어권 오버라이드, 미션 및 파라미터 변조, 그리고 패킷 재전송 (replay) 공격 계열을 원천 차단하기 위한 1차 방어 결합 (primary coupling)은 반드시 \textbf{암호학적 인증 기반의 예방 게이트웨이 (D-SIGN)}가 담당해야 한다. 반면, 제어 및 상태 불변식 감시 (D5), 시그니처-프리 이상 탐지 (D6), 그리고 침입 탐지 시스템 (D2) 등의 모듈들은 인증을 우회하는 위협을 즉각적으로 포착하는 \textbf{고속 트립와이어 (rapid tripwire)}이자, 1차 예방망이 적용 불가하거나 무력화된 환경에서 기체의 안전을 담보하는 \textbf{필수적인 생존 폴백 (survivable fallback)} 기제로 기능하도록 유기적으로 설계된다.
+% 출처-모호성 (provenance-ambiguity)이 관통 통찰이다: 단일 채널 미인증 오버라이드는 액추에이터에서 정당 명령과 구별 불가능하다. 그래서 주입/오버라이드/변조/재전송 계열의 1차 결합은 인증 (D-SIGN)이며, 불변식/이상/IDS 탐지기는 빠른 트립와이어 및 생존 폴백이다.
+
+\subsection{실시간 예방 및 차단: 5대 방어 메커니즘의 실증적 공격 방어율 (ASR 1.0 $\to$ 0.0)}
+
+본 방어 체계는 5가지 이질적인 예방 메커니즘 클래스를 실제 SITL 폐루프 (Closed-loop) 제어 환경에서 실증한다. 특히 각 라이브 방어 테스트는 방어 로직의 개입 (Actuation) 여부만을 독립 변인으로 통제하는 인과성 검증 (Same-Decision Causal Control)과, 정상 궤적과 대조하는 정상 상태 대조군 (Negative Control) 평가를 엄격히 동반하여 방어 성능의 객관성을 확보한다.
+
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{모드 강제 전환 (BRAKE) --- RC 오버라이드 공격 (UAV):} 
+    D5 모듈의 탐지 래치 발동 시 즉각적으로 기체를 \texttt{set\_mode(BRAKE)} 상태로 전환한다. 실측 결과, 공격에 의한 피크 수평 이탈이 \textbf{52.78 m에서 0.70 m} (n=3, 98.7\% 감소)로 급감하며, 제어 명령 하달 후 0.31초 내에 방어에 성공하여 ASR을 1.0에서 0.0으로 완벽히 억제한다. 인과성 검증 결과, 방어 지시 (Decision) 발생 시 차단 (Dispatch) 로직을 비활성화하면 ASR 1.0이 유지되고, 활성화하면 ASR 0.0이 도출됨을 교차 검증한다.
+
+    \item \textbf{EKF 항법 소스 강제 전환 --- GPS 스푸핑 (UAV/UGV):} 
+    D3 모듈 래치 시 \texttt{DO\_AUX\_FUNCTION (90)} 명령을 통해 EKF 추정 소스를 오염된 GPS에서 관성 추측 항법(\texttt{EK3\_SRC2})으로 전환한다. 이를 통해 3D 추정 오차를 \textbf{39.81 m에서 5.19 m} (n=3, 87\% 감소)로 대폭 완화하며 0.81초 내에 위협을 무력화 (ASR 1.0 $\to$ 0.0)한다.
+
+    \item \textbf{MAVLink2 서명 게이트웨이 (D-SIGN) --- 위조 명령/변조/재전송 공격:} 
+    상향 링크 (Uplink)로 유입되는 매 프레임에 대해 HMAC-SHA256 암호학적 검증을 강제한다. 서명이 누락되거나 잘못된 키를 지닌 악성 프레임 288개를 전량 폐기하며, 정당하게 서명된 제어 명령은 오거부율 0\%로 통과시킨다. 게이트웨이 부재 시 매번 성공하던 악성 모드 주입(\texttt{DO\_SET\_MODE$\to$RTL})이 방어 활성화 시 완전히 차단 (ASR 0.0, 정상 LOITER 3/3 유지)된다. 이 단일 방어 기제만으로 \textbf{명령 주입, 패킷 재전송, 미션 변조, 파라미터 변조 공격을 동시에 봉쇄}하는 강력한 통제력을 입증한다.
+
+    \item \textbf{지상 기체 정지 명령 (HOLD) --- 조향 채널 오버라이드 (UGV):} 
+    UGV 조향 강탈 공격 탐지 시 방어 지휘관 로직(\texttt{ModeChangeResponder})이 즉각 HOLD 모드로 개입한다. 공격 시 최대 180°에 달하던 기수 (Heading) 방위각 이탈을 \textbf{29.5°로 억제}하고, 물리적 경로 이탈을 \textbf{11.42 m에서 3.36 m} (n=3, 70.6\% 감소)로 대폭 축소하며 7.03초 내에 공격을 차단 (ASR 1.0 $\to$ 0.0)한다.
+
+    \item \textbf{QoS 기반 패킷 유입 속도 제한 (Token Bucket) --- 대역폭 플러딩 공격:} 
+    시스템 ID (SysID)별로 초당 25회, 최대 버스트 (Burst) 50회의 토큰 버킷 알고리즘을 네트워크 셰이퍼 (Shaper)에 연동한다. 대역폭 포화 시 정당한 제어 명령이 겪는 기아 현상을 \textbf{80.0\%에서 0.0\%}로 완벽히 해소하며 (정상 완료 명령 2건 $\to$ 178건), 플러딩 유발 SysID의 패킷은 99.16\% 폐기하면서도 정당한 SysID의 패킷 손실은 0\%로 안전하게 유지한다.
+\end{enumerate}
+
+본 연구는 공격 차단뿐만 아니라, \textbf{능동적인 파라미터 복구 메커니즘에 대한 실측 검증}도 수행한다. 일례로 공격자가 기체의 안전 페일세이프 변수를 무력화 (\texttt{FS\_THR\_ENABLE=0})하더라도, 모니터링 모듈이 이를 즉각 정상값 (1)으로 재확립한다. 실측 결과, 이후 유도된 링크 상실 공격 상황에서 기체가 1.04초 만에 정상적으로 귀환 (RTL) 절차를 발동함으로써, 공격자의 페일세이프 억제 시도를 굴복시키고 (ASR 1.0 $\to$ 0.0) 기체의 생존성을 온전히 회복함을 확인한다.
+% \subsection{실측 예방 - 5개 예방 메커니즘 클래스가 ASR 1.0 $\to$ 0.0}
+
+% 본 체계는 다섯 개의 서로 다른 예방 메커니즘 클래스를 실제 SITL 루프에서 검증하며, 각 라이브-폐루프 실행은 인과 통제 (same-Decision causal control)와 정상 음성 통제를 동반한다.
+
+% \begin{enumerate}[leftmargin=*]
+%     \item \textbf{BRAKE(모드 전환)} --- RC 오버라이드 (UAV). D5 latch $\to$ 라이브 \texttt{set\_mode (BRAKE)}: 피크 편차 \textbf{52.78 $\to$ 0.70 m}(n=3, $-$98.7\%), ASR 1.0 $\to$ 0.0, 액추에이트 0.31 s. 공유 BLUE 지휘관 자신의 \texttt{Decision}으로 재확인(n=3, 53.13 $\to$ 1.86 m). 인과 통제: 동일 Decision을 dispatch OFF로 로깅하면 ASR 1.0 유지, ON이면 0.0.
+%     \item \textbf{EKF 소스 전환} --- GPS 스푸프 (UAV/UGV). D3 latch $\to$ 라이브 \texttt{DO\_AUX\_FUNCTION (90)}으로 \texttt{EK3\_SRC2}(관성 추측항법) 전환: 추정오차 \textbf{39.81 $\to$ 5.19 m}(n=3, $-$87\%), ASR 1.0 $\to$ 0.0, 0.81 s.
+%     \item \textbf{MAVLink2 서명 (D-SIGN 게이트웨이)} --- 명령주입/미션변조/파라미터변조/재전송. 업링크 매 프레임 HMAC-SHA256 검증, 미서명/오키 드롭. 미서명 288 거부/0 전달, 정당 서명 명령은 오거부 0으로 통과. 라이브 종단: 위조 \texttt{DO\_SET\_MODE$\to$RTL}이 게이트 없이는 매번 LOITER$\to$RTL, 게이트 시 LOITER 3/3 유지(ASR 1.0$\to$0.0, n=3). \textbf{하나의 메커니즘이 주입+재전송+미션변조+파라미터변조를 동시에 차단}한다.
+%     \item \textbf{HOLD (로버 모드 전환)} --- 조향 오버라이드(UGV). 지휘관 \texttt{Decision} $\to$ \texttt{ModeChangeResponder(HOLD)}: 최대 헤딩 편차 \textbf{180 $\to$ 29.5°}, 경로이탈 \textbf{11.42 $\to$ 3.36 m}(n=3, $-$70.6\%), ASR 1.0 $\to$ 0.0, 7.03 s.
+%     \item \textbf{QoS 레이트리밋 (토큰버킷)} --- 대역폭 flooding. per-sysid 토큰버킷 (25 Hz/버스트 50)을 셰이퍼에 배선: 정당 업링크 명령 기아 \textbf{80.0\% $\to$ 0.0\%}(완료 명령 2 $\to$ 178, n=1), 플러드 sysid 99.16\% 드롭, 정당 sysid 0 드롭.
+% \end{enumerate}
+
+% 복구까지 실측된 사례로 파라미터 복구가 있다: 모니터가 \texttt{FS\_THR\_ENABLE=1}을 재확립하면 유도된 링크 손실 시 기체가 다시 RTL(1.04 s)을 발화하여 페일세이프 억제 ASR 1.0 $\to$ 0.0을 회복한다.
+
+%\subsection{방어 심층 (defense-in-depth) --- 규칙이 눈멀 때의 백업}
+\subsection{심층 방어 (defense-in-depth) --- 단일 규칙 우회 시의 다중 백업 기제}
+
+%결합은 단선이 아니라 심층이다. 대표 실증은 명령주입 방어의 규칙 disjoint 백업이다: 공격자가 신뢰 sysid 255를 위조하면 D2의 R3 (출처 규칙)은 설계상 눈이 먼다. 그러나 R3의 sysid 검사와 분리 (disjoint)된 하트비트-상태 신호인 R2 예기치않은모드 백업이 여전히 0.0 s에 포착하고 (R1 비행중disarm 0.397 s), 그 위에 D-SIGN 인증이 프레임을 아예 드롭한다. 즉 탐지 (IDS, 침입 탐지 시스템) 실패 시에도 인증 계층이, 인증 미이행 링크/내부자에서도 IDS 트립와이어가 남는 다중화 구조다.
+
+공격과 방어의 결합은 선형적 연결에 그치지 않고 심층적인 다중 구조를 형성한다. 이를 실증하는 대표적 사례는 명령 주입 (command injection) 방어에 적용된 상호 배타적 (disjoint) 규칙 기반의 백업 기제이다. 가령 공격자가 신뢰할 수 있는 시스템 식별자 (sysid 255)를 위조하여 주입할 경우, D2 탐지기의 R3 (출처 검증 규칙)는 설계상 이를 정상 프레임으로 오인하여 위협 탐지에 실패하게 된다.
+그러나 R3의 시스템 식별자 검사와 구조적으로 분리된 하트비트 (heartbeat) 및 상태 신호 기반의 R2 (예기치 않은 모드 전환) 백업 규칙이 이를 0.0초 내에 즉각 포착하며, R1 (비행 중 차단 명령) 규칙 역시 0.397초 시점에 연이어 위협을 식별한다. 더 나아가, 탐지 계층 상단에 위치한 서명 기반 검증 ([SIGN]) 계층이 해당 악성 프레임을 원천적으로 폐기하여 액추에이션 (actuation)을 차단한다.
+
+결과적으로, 이는 침입 탐지 시스템(IDS)의 단일 규칙이 우회되거나 실패하더라도 상위의 인증 계층이 방어를 수행하며, 반대로 인증이 적용되지 않은 레거시 통신 링크나 내부자 공격(insider threat) 상황에서도 IDS의 트립와이어(tripwire)가 온전히 작동하여 상호 보완적인 다중화(redundancy) 방어 구조가 성립함을 입증한다.
+
+%\subsection{하드닝 --- D3/D5의 봉투(envelope) 확장}
+\subsection{하드닝 (hardening) --- D3 및 D5의 탐지 영역 (envelope) 확장}
+
+강도 스윕은 임계 바로 아래 (sub-threshold) 사각을 드러냈고, 원본 무손상 방식으로 하드닝한다.
+공격 강도 스윕 (intensity sweep) 결과, 기존 임계치 미만 (sub-threshold)에서 회피가 가능한 탐지 사각지대 (blind spot)가 식별된다. 이에 본 연구는 원본 방어 기제의 독립성을 유지하면서도 방어력을 증강하는 가법적 (additive) 하드닝 기법을 도입한다.
+\begin{itemize}[leftmargin=*]
+    \item \textbf{D5+} (\texttt{control\_invariant\_hardened.py}): 기저 D5 탐지기는 명령 및 상태 불변식 (invariant)을 논리합 (OR)으로 융합한다. 그러나 공격자가 오버라이드 강도를 임계치 바로 아래로 유지할 경우, 탐지가 전적으로 물리적 드리프트에 의존하게 되어 탐지 지연이 발생하거나 위협을 완전히 놓치는 한계가 존재한다. D5+는 두 개의 보조 신호를 추가하여 이러한 사각지대를 보완한다 (원본 클래스는 변경하지 않는 포섭 (subsumption) 구조 적용).
+    \item \textbf{D3+} (\texttt{gps\_innovation\_hardened.py}): 기저 D3 탐지기의 순간 게이트 (transient gate, $\sim$0.03)는 변화율 (rate)에 민감하게 반응하도록 설계되어 있어, 충분히 느린 속도로 진행되는 GPS 완만 기만 (slow spoofing) 시에는 오차가 게이트 임계치 아래에 묻혀 무한히 누적되는 취약점이 있다. 이를 극복하기 위해 D3+는 (1) 기존의 순간 게이트, (2) 순간 게이트를 결코 발동 (trip)시키지 않는 미세 편향 (bias)을 포착하기 위한 드리프트 누적 단측 (one-sided) CUSUM, (3) 임의의 채널 발화 (fire) 시 상태를 유지하는 강화된 지속 게이트 (persistent gate)를 병렬로 구성한다.
+\end{itemize}
+
+강도 스윕 및 두 하드닝 신호의 기여 분리 (ablation) 결과는 8장 (평가)에서 정량적으로 다룬다.
+
+\subsection{실현 가능성(deployability) --- 모두 네이티브 ArduPilot/컴패니언}
+
+가장 강한 실현가능성 논거는 차단이 존재하는 모든 곳에서, 그것이 실제 오토파일럿이 이미 탑재한 제어의 구성이지 우리가 발명한 비행코드가 아니라는 점이다. MAVLink2 서명 (D-SIGN)은 네이티브(\texttt{setup\_signing}, 커스텀 SHA-256)이며 무선-오토파일럿 사이 컴패니언 게이트웨이에서 프레임당 HMAC 1회(µs)로 검증한다. BRAKE/HOLD (D5 대응)는 네이티브 모드이며 D5 latch 시 컴패니언이 \texttt{set\_mode}를 호출한다. EKF 소스전환 (D3 대응)은 네이티브 (\texttt{EK3\_SRCn\_*}+\texttt{DO\_AUX\_FUNCTION(90)}+\texttt{FS\_EKF\_ACTION})이며 컴패니언은 \texttt{EKF\_STATUS\_REPORT} 판독만 담당한다. 로스트링크 RTL (D4 대응)은 네이티브 \texttt{FS\_GCS}이며 D4는 원인 귀속만 수행한다. 탐지기 (D2/D5/D6/D-XCHK/IMU/BARO/PARAM/MISSION/REPLAY)는 자체구현이나 수동 MAVLink 탭으로, 컴패니언 (Jetson급)에서 텔레메트리레이트 5--10 Hz로 무시할 연산이다. 요컨대 대응은 네이티브 기능에 올라타고, 탐지는 컴패니언 수동 탭으로 무시할 연산에 호스팅되어, 펌웨어 재작성이 아닌 구성+컴패니언 프로세스만으로 실제 방어 UAV/UGV 플랫폼에 배치 가능하다.
+
+
+% \subsection{연구의 객관성 및 실증 한계 (Honest Boundaries of Evaluation)}
+% 본 연구는 평가의 투명성과 학술적 객관성을 보장하기 위해, 제안된 방어 체계의 구조적·실험적 한계를 다음과 같이 명확히 규정한다.
+
+% \begin{enumerate}[leftmargin=*]
+%     \item \textbf{능동적 예방 검증의 범위:} 
+%     실제적인 위협 차단 성능은 \textbf{[LIVE]} 및 \textbf{[SIGN]} 태그가 부여된 시나리오 (모드 강제 전환, EKF 소스 전환, 서명 기반의 명령/임무/파라미터/재전송 통제, 대역폭 속도 제한)에 한하여 실증된다. 그 외의 방어 기제는 기체 고유의 복구 로직에 의존하는 \textbf{[NATIVE-FS]}, 능동적 회피가 불가능한 \textbf{[DETECT-ONLY]} (지자기/IMU/기압계), 또는 설계 단계에 머무른 \textbf{[PROPOSED]} (UGV 자동 정지 복구) 수준임을 명확히 구분한다.
+
+%     \item \textbf{물리 센서 스푸핑 방어의 구조적 한계:} 
+%     지자기, IMU, 기압 센서에 대한 다중 기만 공격은 본 방어 체계에서 철저히 탐지 전용(Detect-only)으로 분류된다. 기체에 내장된 네이티브 EKF 필터가 이상 데이터 융합을 거부하여 물리적 이탈을 일정 부분 억제할 수는 있으나, 이는 본 연구가 제안하는 직접적인 통제(Control) 영역이 아니므로 예방 및 방어 성과에서 배제하였다.
+
+%     \item \textbf{표본 크기(Sample Size)에 따른 통계적 제약:} 
+%     통신 및 제어 스위핑(Sweeping) 테스트의 공격 성공률(ASR)은 5회의 반복 부팅(n=5, Fresh-boot) 조건에서 검증되어 신뢰성을 확보하였다. 반면, 기체의 추락 위험 및 물리적 창발이 동반되는 평가와 능동 예방 실험은 소표본(n=1$\sim$3)으로 진행되었으며, 앞서 정의한 증명 티어(Tier) 체계는 이러한 실험적 제약을 투명하게 반영하고 있다.
+
+%     \item \textbf{전면 소프트웨어 모의 실험(SITL) 의존성:} 
+%     본 연구의 모든 위협 발생 및 방어 평가는 실물 하드웨어, 실제 RF 및 GNSS 신호 방사, 또는 커널 수준의 네트워크 에뮬레이션(netem) 없이 SITL 환경에서만 수행되었다. 특히 본문에서 언급된 '위성(SATCOM) 및 비가시권(BLOS)' 통신 환경은 유저 스페이스(Userspace) 릴레이를 통해 논리적으로 에뮬레이션된 특성임을 밝힌다.
+
+%     \item \textbf{대역폭 플러딩 차단(속도 제한)의 잔여 취약점:} 
+%     QoS 기반의 방어를 적용하더라도, 공격자가 정상 지상통제장비(GCS)의 SysID를 탈취하여 위조할 경우 동일한 토큰 버킷을 공유하게 되어 정당한 명령의 기아(Starvation)를 다시 유발할 수 있다. 또한 탐지 임계치(초당 200프레임)에 대한 전수 조사가 수행되지 않았으며, 하향 링크(Downlink)만을 모니터링하는 GCS 환경에서는 상향 대역 플러딩 공격 자체를 인지할 수 없는 맹점(Blind spot)이 존재한다.
+% \end{enumerate}
+
+% \subsection{정직성 경계(요약)}
+
+% \begin{enumerate}[leftmargin=*]
+%     \item 예방은 [LIVE]/[SIGN] 태그에서만 실증된다 --- BRAKE, HOLD, GPS 소스전환, 명령/재전송/미션/파라미터 서명, 플러드 레이트리밋. 그 외는 [NATIVE-FS](복구=오토파일럿 자체 페일세이프), [DETECT-ONLY](자기/IMU/기압계), [PROPOSED](로버 AUTO HOLD 복구)다.
+%     \item 자기/IMU/기압계는 정직한 탐지 전용이다. 네이티브 EKF가 효과를 경계지을 수 있으나 그것은 우리의 제어가 아니다.
+%     \item 표본 크기: 스윕 ASR은 n=5 fresh-boot, 여러 발현·예방 수치는 n=1--3이며 티어가 이를 반영한다.
+%     \item 전면 에뮬레이션·SIM 전용 --- 실 RF·GNSS 송신·root/커널 netem·하드웨어 없음. "위성/BLOS"는 userspace 릴레이가 에뮬레이트한 링크 특성이다.
+%     \item 링크 플러드 레이트리밋의 정직한 한계: GCS-sysid를 위조하는 공격자는 동일 per-sysid 버킷에 들어가 재기아시킬 수 있고, 200/s 임계는 스윕되지 않았으며 다운링크 전용 GCS는 이 플러드에 눈이 멀다.
+% \end{enumerate}

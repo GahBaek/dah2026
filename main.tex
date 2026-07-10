@@ -1,0 +1,239 @@
+% !TEX program = xelatex
+% This is samplepaper.tex, a sample chapter demonstrating the
+% LLNCS macro package for Springer Computer Science proceedings;
+% Version 2.20 of 2017/10/04
+%
+\documentclass[runningheads]{llncs}
+%\documentclass[draft,runningheads]{llncs}
+
+%
+\usepackage{graphicx}
+\usepackage{kotex}
+\usepackage{dhucs-cmap}
+\usepackage[hangul,nonfrench,finemath]{kotex}
+%\SetHangulFonts{utgr}{utgt}{uttz}
+\usepackage{tabularx} 
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{braket}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{menukeys} 
+\usepackage{pythonhighlight}
+\usepackage{subfig}
+\usepackage{setspace}
+\usepackage{geometry}
+\usepackage{color}
+\usepackage{soul}
+\usepackage{enumitem}
+\usepackage{setspace}
+\usepackage{tikz}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{arydshln}
+\usepackage{float}
+\usepackage{url}
+\usepackage{adjustbox}
+\usepackage{multirow}
+
+\geometry{
+  a4paper,
+  left=2.5cm,
+  right=2.5cm,
+  top=2.5cm,
+  bottom=2.5cm
+}
+
+\setstretch{1.1}
+
+\raggedbottom
+
+\makeatletter
+\renewcommand*\l@section[2]
+  {%
+    \ifnum \c@tocdepth >\z@
+      \addpenalty \@secpenalty
+      \addvspace {1.0em \@plus \p@ }%
+      \setlength \@tempdima {1.5em}%
+      \begingroup
+        \parindent \z@
+        \rightskip \@pnumwidth
+        \parfillskip -\@pnumwidth
+        \leavevmode \bfseries
+        \advance \leftskip \@tempdima
+        \hskip -\leftskip
+        #1\nobreak
+        \hfil
+        \nobreak
+        \hb@xt@ \@pnumwidth {\hss #2\kern -\p@ \kern \p@ }%
+        \par
+      \endgroup
+    \fi
+  }
+
+\makeatother
+
+\makeatletter
+\renewcommand\subsubsection{
+  \@startsection{subsubsection}{3}{\z@}
+  {-3.25ex\@plus -1ex \@minus -.2ex}
+  {1.5ex\@plus .2ex}
+  {\normalfont\normalsize\bfseries}%
+}
+\makeatother
+
+\definecolor{codegreen}{rgb}{0.13, 0.55, 0.13}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{customc}{
+	backgroundcolor=\color{backcolour},   
+	commentstyle=\color{codegreen}\itshape,
+	keywordstyle=\color{magenta},
+	numberstyle=\tiny\color{codegray},
+	stringstyle=\color{codepurple},
+	basicstyle=\ttfamily\footnotesize,
+	language=Python,
+	basicstyle=\fontsize{7}{7}\ttfamily,
+	breakatwhitespace=false,         
+	breaklines=true,                 
+	captionpos=b,                    
+	keepspaces=true,                 
+	numbers=left,                    
+	numbersep=6pt,                  
+	showspaces=false,                
+	showstringspaces=false,
+	showtabs=false,                  
+	tabsize=2
+}
+
+\lstdefinestyle{customasm}{
+	backgroundcolor=\color{backcolour},   
+	belowcaptionskip=1\baselineskip,
+	language=[x86masm]Assembler,
+	basicstyle=\fontsize{7}{7}\ttfamily,
+	commentstyle=\color{codegreen},
+	keywordstyle=\color{black},
+	identifierstyle=\color{black},
+    captionpos=b,                    
+	keepspaces=false,                 
+	tabsize=2,
+	numbers=left,
+	numbersep=5pt,
+	showspaces=false, 
+	showtabs=false,
+	numberstyle=\tiny\color{gray}
+}
+
+\hyphenpenalty=10000
+\exhyphenpenalty=10000
+
+\lstdefinestyle{custompython}{
+  backgroundcolor=\color{backcolour},
+  language=Python,
+  basicstyle=\ttfamily\fontsize{7}{9}\selectfont,
+  commentstyle=\color{codegreen}\itshape,
+  keywordstyle=\color{blue}\bfseries,
+  stringstyle=\color{codepurple},
+  numbers=left,
+  numbersep=6pt,
+  numberstyle=\tiny\color{codegray},
+  breaklines=true,            
+  breakatwhitespace=true,     
+  keepspaces=true,            
+  columns=fullflexible,      
+  showstringspaces=false,
+  tabsize=2,
+  captionpos=b,
+  inputencoding=utf8,         
+  extendedchars=true,
+  upquote=true,
+  literate={~}{{\textasciitilde}}1 % 
+}
+
+% Used for displaying a sample figure. If possible, figure files should
+% be included in EPS format.
+%
+% If you use the hyperref package, please uncomment the following line
+% to display URLs in blue roman font according to Springer's eBook style:
+% \renewcommand\UrlFont{\color{blue}\rmfamily}
+
+\newcommand{\eg}{{\em 예,}\xspace}
+\newcommand{\ie}{{\em i.e.,}\xspace}
+\newcommand{\etc}{{\em etc.}\xspace}
+\newcommand{\quotes}[1]{``#1''}
+
+
+
+\newcommand*\BC[1]{%
+	\begin{tikzpicture}[baseline=(C.base)]
+		\node[draw,circle,fill=black,inner sep=0.2pt](C) {\textcolor{white}{#1}};
+\end{tikzpicture}}
+
+\newcommand{\PP}[1]{\vspace{2pt}\noindent{\bf#1.}\xspace}
+
+\begin{document}
+
+%
+\title{Aegis-UxV: 다중 도메인 국방 무인체계를 위한 도구 근거 RED/BLUE 에이전트}
+%
+%\titlerunning{Abbreviated paper title}
+% If the paper title is too long for the running head, you can set
+% an abbreviated paper title here
+%
+
+\author{BombTEE: 전형준, 권유정, 김민석, 백가현}
+%
+\authorrunning{성균관대학교 SecAI 연구실}
+% First names are abbreviated in the running head.
+% If there are more than two authors, 'et al.' is used.
+%
+\institute{성균관대학교 인공지능을 활용한 보안 연구실 (SecAI)}
+%
+
+\maketitle              % typeset the header of the contribution
+
+% \setcounter{tocdepth}{2}
+\setcounter{secnumdepth}{3}
+\setcounter{tocdepth}{3} 
+\tableofcontents
+
+\vspace{30pt}
+\listoffigures 
+
+\vspace{20pt}
+\listoftables
+
+\newpage
+\input{content/(1)abstract}
+
+\input{content/(2)intro} % 서론: 배경·문제정의·기여·정직성원칙
+
+\input{content/(3)team} % 팀 구성 및 역할 분배
+
+\input{content/(4)bg} % 배경지식 및 위협 모델
+
+\input{content/(5)attk_scenario} % 공격 시나리오 (심사항목 ①)
+
+\input{content/(6)defense_scenario} % 방어 아키텍처 (심사항목 ②)
+
+\input{content/(7)agent_arch} % AI 에이전트 아키텍처 (심사항목 ③)
+
+\input{content/(8)exp} % 평가 방법론 및 결과
+
+\input{content/(9)relwk} % 관련 연구
+
+\input{content/(10)discussion} % 결론·한계·향후 과제
+
+% \input{content/{10)appendices}
+%
+% ---- Bibliography ----
+%
+% BibTeX users should specify bibliography style 'splncs04'.
+%
+\bibliography{reference}
+\bibliographystyle{splncs04}
+%
+
+\end{document}

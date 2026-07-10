@@ -1,0 +1,55 @@
+% \section{요약 (Abstract)}
+
+%  방산 무인체계 (UAV/UGV)와 이를 지휘하는 위성/BLOS(Beyond Line-Of-Sight) 데이터링크는 항상 적대적(contested)인 환경에서 운용된다는 점에서 민수용 드론 보안과 질적으로 다르다. 본 연구는 이 방산 특수성 --- BLOS 운용에 따른 경로상(on-path) 노출, 상시적인 GNSS 거부(denial), 인증·암호화가 없는 레거시 제어 프로토콜(MAVLink) --- 을 실제 ArduPilot SITL(ArduCopter/ArduRover) 및 userspace MITM MAVLink relay 위에서 실증한다. 실기체·실RF·GNSS 송신·root/kernel netem은 사용하지 않는 순수 시뮬레이션이다.
+
+% 본 연구는 UAV·UGV·위성/BLOS 세 도메인에 걸쳐 \textbf{14개의 문서화된 공격}(RC/조향 오버라이드, MAVLink 명령 주입, GPS·지자기·IMU·기압 기만, GNSS 재밍, 미션·파라미터 변조, 데이터링크 열화/DoS/flooding/재전송)을 실제 운용 맥락 위에서 구현하고, 개별 공격을 넘어 \textbf{실측 공격 합성(kill-chain) 2건}(페일세이프 무력화 후 링크상실이 치명적 표류로 이어지는 KC-A, GPS+기압 복합 스푸핑이 직교합(quadrature) 관계의 3D 오차를 유발하는 KC-B)과, 실제 사건(이란 RQ-170 나포, 우크라이나 전자전, CVE-2020-10283)에 앵커링된 설계 수준 도트린 킬체인 2건을 제시한다. 모든 수치는 \emph{주입값(injected)}과 \emph{창발적 임무 결과(emergent outcome)}를 명시적으로 분리하여 보고한다 --- 동일한 GPS 40 m 기만이 정지 체공에서는 실제 이탈 0.009 m에 그치나 자율 항로 비행 중에는 18.31 m의 회랑 이탈을 유발하는 식이다.
+
+% 방어 체계는 탐지(D2--D8 및 센서 교차검증)·예방·복구의 3층 구조를 가지며, 예방이 실제 SITL 액추에이션에 배선된 항목에만 정량 효과를 부여하는 5단계 정직성 태깅([LIVE]/[SIGN]/[NATIVE-FS]/[DETECT-ONLY]/[PROPOSED])을 도입한다. RC 오버라이드→BRAKE, GPS 기만→EKF 소스 전환, 명령/재전송/미션/파라미터 변조→MAVLink2 서명, 대역폭 flooding→rate-limit의 \textbf{5개 예방 메커니즘 클래스가 공격성공률(ASR)을 1.0에서 0.0으로 낮춤}을 인과적으로(dispatch on/off 대조) 실증하였으며, 자력계/IMU/기압계 스푸핑은 페일오버할 비오염 소스가 없다는 물리적 이유로 정직하게 탐지 전용(detect-only)임을 명시한다.
+
+% AI 에이전트 계층에서는 도메인별 RED 계획 에이전트 3종(UAV/UGV/위성)과 단일 공유 BLUE 지휘관을 구축하였으며, 두 축 모두 실제 로컬 LLM CLI를 경계화된 서브프로세스로 호출해 실제 세션ID·비용이 기록되는 진성 LLM 추론을 수행한다. 탐지는 결정론적 도구가, 상관·귀속·대응 계획은 LLM이 담당하는 역할 분리 위에서, 지휘관 자신의 결정이 SITL 액추에이션을 구동하는 라이브 폐루프(ASR 1.0→0.0, n=3)를 실증하였다. 평가는 LLM이 LLM을 채점하는 순환을 배제한 결정론적 오라클 채점기로 수행하며, 독립 재판정을 통해 "도구가 탐지의 필요조건"이라는 초기 주장을 정직하게 철회·재정식화(일관성·감사가능성 우위로 재정의)하였다. 모든 결과는 시뮬레이션 전용·소표본(n≤5)이라는 한계 위에서 근거 경로와 함께 보고되며, 근거 없는 수치는 만들지 않고 미측정 또는 설계 수준으로 표기한다.
+
+\section{요약 (Abstract)}
+
+본 연구는 방위산업 분야의 국방 무인체계 (Defense Unmanned Systems) 가운데 무인항공기 (Unmanned Aerial Vehicle, UAV)와 무인지상차량 (Unmanned Ground Vehicle, UGV), 그리고 이들의 지휘통제 (Command and Control, C2) 메시지를 전달하는 위성 및 비가시선 (Beyond Line of Sight, BLOS) 데이터링크를 대상으로 한다. 
+%
+국방 무인체계의 C2 데이터링크는 민간용 드론 통신과 달리 적의 감시, 교란, 기만, 침투 가능성을 상시적으로 고려해야 하는 적대적 작전환경 (contested operational environment)을 전제로 하며, 이에 따라 위협 모델과 보안 검증 기준 또한 민간용 드론 보안과 구별한다. 
+%
+본 연구는 이러한 방산 특수성을 공격자가 BLOS C2 중계 경로상 위치를 확보한 조건, GNSS 거부 환경, 그리고 메시지 서명 및 별도 전송계층 암호화가 적용되지 않은 MAVLink 운용 구성이라는 세 가지 조건으로 정식화한다.
+%
+이를 위해 ArduPilot SITL (Software-in-the-Loop) 기반 ArduCopter 및 ArduRover 실험 환경을 구성한다.
+%
+위성/BLOS C2 데이터링크의 경로상 노출 조건은 사용자 공간에서 동작하는 MITM (Man-in-the-Middle) MAVLink 중계기 (relay)를 통해 모사한다. 
+%
+실험 범위는 순수 소프트웨어 시뮬레이션으로 한정하며, 실기체 및 실제 무선주파수 (Radio Frequency, RF) 송수신, GNSS 신호 송신, 루트 권한 (Root privilege), 커널 수준 네트워크 에뮬레이션 (kernel-level network emulation, netem)은 사용하지 않는다.
+
+
+본 연구는 세 도메인에 걸쳐 14개의 공격 시나리오를 공격 모듈, 증거 하니스 주입, 사용자 공간 링크 에뮬레이션 방식으로 구현·재현한다. 공격군은 원격조종 (Radio Control, RC) 또는 조향 오버라이드, MAVLink 명령 주입, GPS (Global Positioning System) 기만, 자력계 (magnetometer) 기만, 관성측정장치 (Inertial Measurement Unit, IMU) 기만, 기압계 (barometer) 기만, GNSS 재밍 (jamming), 임무 변조, 파라미터 (parameter) 변조, 데이터링크 저하 (degradation), 서비스 거부 (denial of service, DoS), 플러딩 (flooding), 재전송 (replay) 공격을 포함한다. 
+%
+또한 개별 공격의 재현에 그치지 않고, 실험 측정 기반 연쇄 공격 1건과 복합 다중센서 공격 1건 (kill chain)을 제시한다. KC-A는 페일세이프 (failsafe) 무력화 이후 링크 상실이 치명적 표류로 이어지는 연쇄 효과를 다루며, KC-B는 GPS와 기압계의 복합 기만이 수평 및 수직 오차 성분의 직교합 (quadrature) 관계를 통해 3차원 위치 오차로 결합되는 현상을 다룬다. 
+%
+더 나아가 이란 RQ-170 나포, 우크라이나 전자전, CVE-2020-10283과 같은 공개 사례를 기준점으로 삼는 설계 수준의 독트린형 킬체인(doctrinal kill chain) 2건을 함께 제시한다. 
+%
+모든 정량 결과는 \emph{주입값 (injected value)}과 \emph{창발적 임무 결과 (emergent mission outcome)}를 명시적으로 분리하여 보고한다. 예를 들어 동일한 GPS 40 m 기만은 정지 체공 조건에서는 0.009 m 수준의 실제 이탈만 보이지만, 자율 항로 비행 조건에서는 18.31 m의 회랑 이탈로 이어지는 양상을 보인다.
+%
+
+본 연구의 방어 체계는 탐지 (detection), 예방 (prevention), 복구 (recovery)의 3층 구조로 구성한다. 
+%
+탐지 계층은 D2--D8 탐지기와 센서 교차검증 (sensor cross-validation)을 포함하며, 예방 계층은 실제 SITL 액추에이션에 배선된 항목에 한하여 정량적 방어 효과를 부여한다. 이를 위해 각 방어 결과를 [LIVE], [SIGN], [NATIVE-FS], [DETECT-ONLY], [PROPOSED]의 다섯 단계로 구분하는 근거 정직성 태깅 (evidence-honesty tagging)을 도입한다. 
+%
+구체적으로 RC 오버라이드 대응을 위한 BRAKE 전환, GPS 기만 대응을 위한 확장 칼만 필터 (extended Kalman Filter, EKF) 소스 전환, MAVLink 명령 주입 대응을 위한 MAVLink 2 서명, 재전송·미션·파라미터 변조 대응을 위한 MAVLink 2 서명 기반 검증, 대역폭 플러딩 대응을 위한 Rate-limit 적용을 예방 항목으로 정의한다. 
+%
+이들 능동 대응 항목은 평가된 폐루프 (closed loop) 구성에서 dispatch on/off 대조를 통해 해당 시나리오의 ASR을 1.0에서 0.0으로 낮췄다. 
+%
+반면 자력계, IMU, 기압계 기만은 페일오버 가능한 비오염 참조원이 없는 조건에서 예방 효과를 주장하지 않으며, 해당 항목을 탐지 전용 ([DETECT-ONLY])으로 분류한다.
+%
+
+AI 에이전트 계층에서는 도메인별 RED 계획 에이전트 3종, 즉 UAV RED, UGV RED, 위성/BLOS RED와 단일 공유 BLUE 커맨더 (BLUE commander)를 구성한다. 
+%
+RED와 BLUE는 모두 로컬 대규모 언어모델 명령줄 인터페이스 (local Large Language Model Command-Line Interface, local LLM CLI)를 권한 및 입출력 경계가 설정된 하위 프로세스로 호출하며, 각 호출은 실제 세션 식별자 (session ID)와 비용 로그를 남기는 실제 LLM 추론으로 수행한다. 
+%
+탐지는 결정론적 도구가 담당하고, 상관 (correlation), 귀속 (attribution), 대응 계획 (response planning)은 LLM이 담당하는 역할 분리 구조를 적용한다. 이 구조 위에서 BLUE 지휘관의 결정이 SITL 내 액추에이션을 직접 구동하는 실시간 폐루프 (live closed loop)를 검증하며, 해당 조건에서 ASR 1.0에서 0.0으로의 감소를 확인한다 (n=3). 
+%
+평가는 LLM이 LLM을 채점하는 순환 구조를 배제하고, 결정론적 오라클 채점기 (deterministic oracle scorer)를 통해 수행한다. 
+%
+또한 독립 재판정 절차를 통해 “도구가 탐지의 필요조건”이라는 초기 주장을 “도구는 탐지의 필요조건이 아니라 일관성, 재현성, 감사가능성 측면에서 우위를 제공하는 요소”로 재정식화한다. 모든 결과는 시뮬레이션 전용 환경과 소표본 조건 ($n \le 5$)이라는 한계를 전제로 제시하며, 각 수치에는 근거 경로를 함께 보고한다. 본 연구는 근거 없는 수치를 생성하지 않고, 미측정 항목과 설계 수준 항목을 명시적으로 구분한다.
+

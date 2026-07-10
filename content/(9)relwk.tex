@@ -1,0 +1,30 @@
+\section{관련 연구}
+
+\subsection{MAVLink/UAS 프로토콜 보안}
+
+MAVLink 프로토콜의 인증 메커니즘 부재는 다수의 선행 실증 연구를 통해 지속적으로 지적되어 왔다~\cite{mavlink_survey_threats,mavlink_vuln_sciup,ficco2022mavlink,mavshield,mavlink_nutshell}. Ficco 등~\cite{ficco2022mavlink}은 MAVLink v1 및 v2의 취약점을 프로토콜 수준에서 심층 분석하며, MAVShield는 UAV 보안 실험 플랫폼을 구축하여 해당 취약점들을 실증한다~\cite{mavshield}. MUVIDS는 무인체계 통신 환경에서 허위 MAVLink 메시지 주입 공격을 탐지하는 기법을 제시하고~\cite{muvids}, 최근에는 정형 검증 방법론인 다자 세션 타입 (multiparty session types) 을 MAVLink 시퀀스에 적용하여 안전 및 보안 속성을 강제하려는 연구도 제안된 바 있다~\cite{session_types_mavlink}. 또한, UAS/UTM 생태계 전반의 보안 과제를 체계화한 서베이 연구~\cite{uas_survey_sok}와 ArduPilot 프레임워크에 대한 제어 인지형 보안 분석~\cite{ardupilot_reverse}은 본 연구의 위협 모델링 설계 기반이 된다. 이러한 선행 연구들과 달리, 본 연구는 개별 프로토콜의 취약점 분석에 그치지 않고, 탐지 계층에서 \textbf{실제 SITL 액추에이션}을 통해 검증된 차단 및 복구 예방 메커니즘을 유기적으로 연계한다는 점에서 차별성을 가진다.
+
+\subsection{인접 플랫폼: ROS~2/DDS 및 자율 로봇}
+
+ROS 2의 보안 확장 표준인 SROS 2는 인증서 기반의 권한 관리 기능을 제공하나, 키스토어 유출이나 QoS 정책의 동기화 결함으로 인한 토픽 스푸핑 취약점이 보고된다~\cite{sros2_insecurity,ros2_supply_chain,ros2_threat_model}. 이와 더불어, LiDAR와 같은 핵심 센서 토픽을 직접 조작하는 공격 기법도 규명된 바 있다~\cite{ros2_lidar_spoofing}. 사족 보행 로봇~\cite{quadruped_survey} 및 휴머노이드 생태계~\cite{humanoid_sok}에 대한 최신 SoK 연구들 역시 동일하게 인증 메커니즘의 부재를 근본적인 보안 취약점으로 지적하고 있다. 본 연구에서는 이 계층을 직접 구현 범위에 포함하지는 않았으나, MAVLink 계층에서 확립한 ``인증 기반의 1차 방어'' 원칙이 이러한 인접 자율주행 플랫폼에도 구조적으로 동일하게 적용될 수 있음을 시사한다.
+
+
+\subsection{UAV/UGV Red/Blue 테스트베드}
+
+UAVLnQ는 ArduPilot SITL과 ns-3 네트워크 시뮬레이터를 ZMQ를 통해 동기화하여, 군집 시나리오에서의 명령 주입, 스푸핑, 서비스 거부 공격을 재현할 수 있는 플랫폼을 제안한다~\cite{uavlnq}. MIXED-SENSE는 이에 더해 실제 환경과 유사한 센서 인식 과정을 결합한 고충실도 UAV 사이버 보안 테스트베드를 구축한다~\cite{mixed_sense}. 한편, 위성 및 가시권 외 (BLOS) 링크 에뮬레이션에 널리 활용되는 \texttt{tc/netem} 기반 접근법은 한계가 존재한다~\cite{theaterq}.  본 연구는 이와 같은 선행 테스트베드의 핵심 구성 원칙을 수용하되, 루트 및 커널 권한이 요구되는 \texttt{netem} 대신 유저 공간에서의 MITM 릴레이를 통해 경로상 노출 조건을 모사하며, 나아가 실제 LLM 기반의 RED 에이전트 및 단일 공유 BLUE 커맨더 계층을 유기적으로 결합한다는 점에서 독창성을 가진다.
+
+\subsection{LLM 에이전트 보안}
+
+LLM 기반 자율 에이전트가 결합된 시스템은 프롬프트 인젝션 ~\cite{prompt_to_protocol,owasp_promptinjection,zombie_agents}, 도구 하이재킹을 통한 데이터 유출 ~\cite{exfil_backdoor}, 장기 메모리에 대한 포이즈닝~\cite{memorygraft,memory_survey,smsr}, 그리고 다중 에이전트 간 통신을 겨냥한 중간자 공격 ~\cite{aitm,mas_security_considerations,seven_challenges_mas} 과 같은 새로운 공격 표면을 형성한다. 자율 LLM 에이전트 워크플로 전반의 위협을 종합한 연구~\cite{openclaw} 역시 이러한 문제의식을 공유한다.
+
+본 연구에서 제안하는 AI 에이전트 아키텍처는 이를 구조적으로 경감하는 설계를 채택한다. 구체적으로, 탐지 기능은 결정론적 도구 (D2--D8) 에 배치하고, LLM의 역할은 위협의 상관분석, 귀속 및 대응 계획 수립이라는 제한된 범위로 축소하며, RED 에이전트가 최상위 의사결정 객체인 단일 공유 BLUE 커맨더의 도구 및 임계값 설정에 접근하지 못하도록 정보 격리 경계를 강제한다. 나아가, 방어자 모델 자체를 겨냥한 프롬프트 인젝션 및 권한 위장 서사 공격을 실제로 수행하여 (n=18), 단일 탐지기 조건에서의 조작 가능성 (2/18) 을 확인하고, 이를 구조적으로 봉쇄하는 코드 수준의 방어 기법 (\texttt{anchor\_guard}) 의 효과를 실측한다. 이는 도구 사용 LLM 방어자의 강건성이 단순한 프롬프트 엔지니어링이 아닌 코드 수준에서 강제되어야 한다는 주장을 설계적 논증을 넘어 실증적인 결과로 뒷받침한다.
+
+\subsection{에이전트 오케스트레이션 인프라 및 평가 방법론}
+
+본 연구의 RED 에이전트 및 단일 공유 BLUE 커맨더는 이러한 범용 프레임워크를 도입하는 대신, 로컬 대규모 언어 모델 명령줄 인터페이스 (local LLM CLI) 를 구현하여 하위 프로세스로 직접 호출하는 경량화된 백엔드 (\texttt{llm\_backend.py}) 구조를 채택한다 ~\cite{claude_code}. 이는 세션 ID 및 비용 기록 등 감사 가능성을 확보하고, 강등 우선 (fallback-first) 원칙을 보다 직관적으로 보장하기 위함이다.
+
+평가 방법론 측면에서, 본 연구에서 제안한 오라클 채점기는 CAGE (Cyber Autonomy Gym for Experimentation) 챌린지에서 채택한 시뮬레이터 및 오라클 기반의 객관적 평가 철학과 궤를 같이한다 ~\cite{cage_challenge}. 특히, 평가 루프에서 LLM이나 강화학습 정책의 주관적 개입을 배제하고, 통제된 적대적 작전환경이 제공하는 정답 데이터 (ground truth) 를 기반으로 에이전트들의 탐지 및 대응 성능을 객관적으로 판정한다는 점에서 핵심적인 설계 원리를 공유하고 있다.
+
+\subsection{실제 사건 및 GNSS/센서 스푸핑 문헌}
+
+본 연구의 위협 모델링에서 참조한 실제 사건 및 위협 시나리오인 이란 RQ-170 나포~\cite{humphreys_testimony_2012}, 우크라이나 전장에서의 전자전 사례~\cite{rusi_russian_airwar_2022}, CVE-2020-10283 취약점~\cite{cve202010283} 등은 국방 무인체계 위협의 실존성을 뒷받침한다. Psiaki 및 Humphreys의 무결성 GPS 기만 연구~\cite{psiaki_humphreys_2016}, Son 등의 음향 공진형 MEMS 자이로 공격~\cite{son2015rocking}, Trippel 등 (WALNUT) 의 음향 MEMS 가속도계 기만 기법~\cite{trippel2017walnut} 은 본 연구의 완만한 센서 드리프트 스푸핑 대비 정교한 물리 계층 공격에 해당하며, 제5장에서 설계 수준의 독트린형 킬체인 분석 자산으로 명확히 분류하여 인용한다. 
